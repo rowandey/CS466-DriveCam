@@ -98,16 +98,10 @@ class SettingsScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text("Dark Mode", style: Theme.of(context).textTheme.bodyLarge),
+              // TODO: update switch themeing to work with darkmode
               Switch(
                 value: isDark,
                 onChanged: (value) => themeProvider.setDarkMode(value),
-                thumbColor: WidgetStateProperty.all(Colors.black),
-                trackColor: WidgetStateProperty.resolveWith((states) {
-                  if (states.contains(WidgetState.selected)) {
-                    return Theme.of(context).colorScheme.primary;
-                  }
-                  return Theme.of(context).colorScheme.primary;
-                }),
               ),
             ],
           ),

@@ -8,8 +8,11 @@ import 'package:provider/provider.dart';
 
 // general todos
 // TODO1: Disable camera if a seperate screen is navigated to and a recording is NOT active
-// TODO2: Force use of a specific color, rather than the general hue
-// TODO3: Figure out datastructure
+// TODO2 - DONE: Force use of a specific color, rather than the general hue
+// TODO3: Set up SQL structure
+// TODO4: Fix dark mode
+// TODO5: Make clip screen
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

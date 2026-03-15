@@ -21,7 +21,6 @@ class ThemeProvider extends ChangeNotifier {
     onSurface: Colors.black,
   );
 
-  // TODO: fix dark mode
   ColorScheme darkColorScheme = const ColorScheme(
     brightness: Brightness.dark,
     primary: Color(0xFF0072AC),
