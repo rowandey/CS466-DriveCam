@@ -1,7 +1,9 @@
+import 'package:drivecam/provider/theme_provider.dart';
 import 'package:drivecam/widgets/app_bar.dart';
 import 'package:drivecam/widgets/bottom_app_bar.dart';
 import 'package:drivecam/widgets/setting_dropdown.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -25,6 +27,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = context.watch<ThemeProvider>();
+    final isDark =
+        themeProvider.themeMode == ThemeMode.dark ||
+        (themeProvider.themeMode == ThemeMode.system &&
+            MediaQuery.platformBrightnessOf(context) == Brightness.dark);
+
     return Scaffold(
       appBar: const MyAppBar(title: 'Settings'),
       body: ListView(
@@ -46,13 +54,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
           SettingDropdown(
             label: 'Rolling Footage Limit',
             value: _footageLimit,
-            options: const ['30min', '1h', '1.5h', '2h', '3h', '4h', '5h', '6h'],
+            options: const [
+              '30min',
+              '1h',
+              '1.5h',
+              '2h',
+              '3h',
+              '4h',
+              '5h',
+              '6h',
+            ],
             onChanged: (v) => setState(() => _footageLimit = v),
           ),
           SettingDropdown(
             label: 'Footage Storage Limit',
             value: _storageLimit,
-            options: const ['1GB', '2GB', '4GB', '8GB', '12GB', '16GB', '32GB', '64GB'],
+            options: const [
+              '1GB',
+              '2GB',
+              '4GB',
+              '8GB',
+              '12GB',
+              '16GB',
+              '32GB',
+              '64GB',
+            ],
             onChanged: (v) => setState(() => _storageLimit = v),
           ),
 
@@ -78,7 +104,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onChanged: (v) => setState(() => _clipStorageLimit = v),
           ),
 
-          // Text("Misc")
+          Divider(),
+
+          Text("Misc", style: TextStyle(fontSize: 22)),
+
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text("Dark Mode", style: Theme.of(context).textTheme.bodyLarge),
+              Switch(
+                value: isDark,
+                onChanged: (value) => themeProvider.setDarkMode(value),
+                thumbColor: WidgetStateProperty.all(Colors.black),
+                trackColor: WidgetStateProperty.resolveWith((states) {
+                  if (states.contains(WidgetState.selected)) {
+                    return Theme.of(context).colorScheme.primary;
+                  }
+                  return Theme.of(context).colorScheme.primary;
+                }),
+              ),
+            ],
+          ),
         ],
       ),
       bottomNavigationBar: const MyBottomNavBar(disableSettings: true),

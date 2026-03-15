@@ -6,7 +6,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 // general todos
-// TODO: Disable camera if a seperate screen is navigated to and a recording is NOT active
+// TODO1: Disable camera if a seperate screen is navigated to and a recording is NOT active
+// TODO2: Force use of a specific color, rather than the general hue
+// TODO3: Figure out datastructure
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,15 +32,8 @@ class MainApp extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeProvider = context.watch<ThemeProvider>();
     return MaterialApp(
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: themeProvider.seedColor),
-      ),
-      darkTheme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: themeProvider.seedColor,
-          brightness: Brightness.dark,
-        ),
-      ),
+      theme: ThemeData(colorScheme: themeProvider.lightColorScheme),
+      darkTheme: ThemeData(colorScheme: themeProvider.darkColorScheme),
       themeMode: themeProvider.themeMode,
       home: Scaffold(
         body: HomePage(camera: camera),

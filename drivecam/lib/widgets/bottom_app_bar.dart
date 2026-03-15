@@ -13,12 +13,14 @@ class MyBottomNavBar extends StatelessWidget {
     final themeProvider = context.watch<ThemeProvider>();
     
     return BottomAppBar(
+      color: Theme.of(context).colorScheme.primary,
       child: Row(
         spacing: 56,
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          IconButton(icon: const Icon(Icons.home), onPressed: () {}), // TODO: implement clip button
+          // TODO: implement clip screen button
+          IconButton(icon: const Icon(Icons.home), onPressed: () {}), 
           RecordingButton(themeProvider: themeProvider),
           IconButton(
             icon: const Icon(Icons.settings),

@@ -7,17 +7,35 @@ class ThemeProvider extends ChangeNotifier {
 
   bool recordingOn = false;
 
-  Color seedColor = const Color.fromARGB(255, 45, 78, 148);
-  Color recordButtonColor = Color.fromARGB(255, 100, 100, 100);
+  Color recordButtonColor = const Color(0xFF646464);
+
+  ColorScheme lightColorScheme = const ColorScheme(
+    brightness: Brightness.light,
+    primary: Color(0xFF4AB9E7),
+    onPrimary: Colors.white,
+    secondary: Color(0xFF0072AC),
+    onSecondary: Colors.white,
+    error: Colors.red,
+    onError: Colors.white,
+    surface: Colors.white,
+    onSurface: Colors.black,
+  );
+
+  ColorScheme darkColorScheme = const ColorScheme(
+    brightness: Brightness.dark,
+    primary: Color(0xFF0072AC),
+    onPrimary: Colors.white,
+    secondary: Color(0xFF4AB9E7),
+    onSecondary: Colors.white,
+    error: Colors.red,
+    onError: Colors.white,
+    surface: Color(0xFF121212),
+    onSurface: Colors.white,
+  );
 
   void toggleRecordingButtonColor() {
     recordingOn = !recordingOn;
-    recordButtonColor = recordingOn ? Color.fromARGB(255, 255, 0, 0) : Color.fromARGB(255, 100, 100, 100);
-    notifyListeners();
-  }
-
-  void setSeedColor(Color color) {
-    seedColor = color;
+    recordButtonColor = recordingOn ? const Color(0xFFFF0000) : const Color(0xFF646464);
     notifyListeners();
   }
 
