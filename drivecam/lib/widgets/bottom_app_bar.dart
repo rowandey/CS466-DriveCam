@@ -1,3 +1,4 @@
+import 'package:drivecam/screens/all_footage_display.dart';
 import 'package:drivecam/screens/settings.dart';
 import 'package:drivecam/widgets/recording_button.dart';
 import 'package:flutter/material.dart';
@@ -15,17 +16,22 @@ class MyBottomNavBar extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // TODO: implement clip screen button
-          IconButton(icon: const Icon(Icons.home), onPressed: () {}),
+          IconButton(
+            icon: const Icon(Icons.video_collection_rounded),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const AllFootageDisplay()),
+            ),
+          ),
           const RecordingButton(),
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: disableSettings
                 ? null
                 : () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const SettingsScreen()),
-                    ),
+                    context,
+                    MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                  ),
           ),
         ],
       ),
