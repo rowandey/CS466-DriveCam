@@ -1,6 +1,4 @@
-import 'dart:io';
-
-import 'package:drivecam/models/recording.dart';
+import 'package:drivecam/screens/footage_viewer.dart';
 import 'package:drivecam/screens/recording_display.dart';
 import 'package:drivecam/widgets/app_bar.dart';
 import 'package:drivecam/widgets/bottom_app_bar.dart';
@@ -11,17 +9,22 @@ class AllFootageDisplay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      appBar: MyAppBar(title: 'Clip Manager'),
+    return Scaffold(
+      appBar: const MyAppBar(title: 'Clip Manager'),
       body: Column(
         children: [
-          Center(child: Text('Clips')),
-
-          Center(child: Text('Recording')),
-          RecordingDisplay()
+          const Center(child: Text('Clips')),
+          const Center(child: Text('Recording')),
+          InkWell(
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const FootageViewer()),
+            ),
+            child: const RecordingDisplay(),
+          ),
         ],
       ),
-      bottomNavigationBar: MyBottomNavBar(),
+      bottomNavigationBar: const MyBottomNavBar(),
     );
   }
 }
