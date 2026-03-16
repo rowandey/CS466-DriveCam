@@ -14,10 +14,15 @@ class RecordingDisplay extends StatelessWidget {
         '${seconds.toString().padLeft(2, '0')}';
   }
 
+  // should only use GB when appropriate
   static String _formatSize(int? bytes) {
-    if (bytes == null) return '0.00 GB';
-    final gb = bytes / (1024 * 1024 * 1024);
-    return '${gb.toStringAsFixed(2)} GB';
+    if (bytes == null) return 'Unknown size';
+    if (bytes >= 1024 * 1024 * 1024) {
+      final gb = bytes / (1024 * 1024 * 1024);
+      return '${gb.toStringAsFixed(2)} GB';
+    }
+    final mb = bytes / (1024 * 1024);
+    return '${mb.toStringAsFixed(1)} MB';
   }
 
   @override
@@ -31,7 +36,7 @@ class RecordingDisplay extends StatelessWidget {
             child: Center(child: CircularProgressIndicator()),
           );
         }
-    
+
         final recording = snapshot.data;
         if (recording == null) {
           return const SizedBox(
@@ -39,10 +44,10 @@ class RecordingDisplay extends StatelessWidget {
             child: Center(child: Text('No recording available')),
           );
         }
-    
+
         final durationText = _formatDuration(recording.recordingLength);
         final sizeText = _formatSize(recording.recordingSize);
-    
+
         return Center(
           child: AspectRatio(
             aspectRatio: 16 / 9,
@@ -61,18 +66,17 @@ class RecordingDisplay extends StatelessWidget {
                   right: 8,
                   bottom: 8,
                   child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.black54,
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
                       '$sizeText - $durationText',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                      ),
+                      style: const TextStyle(color: Colors.white, fontSize: 12),
                     ),
                   ),
                 ),
