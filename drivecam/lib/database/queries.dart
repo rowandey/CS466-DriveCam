@@ -1,13 +1,14 @@
 // RECORDING SQL
 //
 // Schema:
-//   id                 - UUID (v4) uniquely identifying this recording
-//   recording_location - absolute file path to the video file on device
-//   recording_length   - duration of the recording in seconds
-//   recording_size     - size of the recording file in MB (nullable until written)
+//   id                   - UUID (v4) uniquely identifying this recording
+//   recording_location   - absolute file path to the video file on device
+//   recording_length     - duration of the recording in seconds
+//   recording_size       - size of the recording file in MB (nullable until written)
+//   thumbnail_location   - absolute file path to the thumbnail image on device (nullable)
 //
 // Only one recording row ever exists. It is upserted on each app launch
-// and reused across sessions. Only gets deleted when the user wants it to be. 
+// and reused across sessions. Only gets deleted when the user wants it to be.
 // It can grow/shrink in size as settings constraints change.
 
 const createRecordingTable = '''
@@ -15,26 +16,28 @@ const createRecordingTable = '''
     id TEXT PRIMARY KEY,
     recording_location TEXT NOT NULL,
     recording_length INTEGER NOT NULL,
-    recording_size INTEGER
+    recording_size INTEGER,
+    thumbnail_location TEXT
   )
 ''';
 
 const insertRecording = '''
-  INSERT OR REPLACE INTO recording (id, recording_location, recording_length, recording_size)
-  VALUES (?, ?, ?, ?)
+  INSERT OR REPLACE INTO recording (id, recording_location, recording_length, recording_size, thumbnail_location)
+  VALUES (?, ?, ?, ?, ?)
 ''';
 
 const selectRecording = '''
-  SELECT id, recording_location, recording_length, recording_size
+  SELECT id, recording_location, recording_length, recording_size, thumbnail_location
   FROM recording
   LIMIT 1
 ''';
 
 const updateRecording = '''
   UPDATE recording
-  SET recording_location = ?,
-      recording_length   = ?,
-      recording_size     = ?
+  SET recording_location   = ?,
+      recording_length     = ?,
+      recording_size       = ?,
+      thumbnail_location   = ?
   WHERE id = ?
 ''';
 

@@ -9,7 +9,7 @@ class RecordingProvider extends ChangeNotifier {
     isRecording = !isRecording;
     notifyListeners();
     if (isRecording) {
-      
+      // TODO: start recording
     } else {
       // TODO: stop recording
     }

@@ -6,12 +6,14 @@ class Recording {
   final String recordingLocation;
   final int recordingLength;
   final int? recordingSize;
+  final String? thumbnailLocation;
 
   Recording({
     required this.id,
     required this.recordingLocation,
     required this.recordingLength,
     this.recordingSize,
+    this.thumbnailLocation,
   });
 
   factory Recording.fromMap(Map<String, dynamic> map) {
@@ -20,6 +22,7 @@ class Recording {
       recordingLocation: map['recording_location'] as String,
       recordingLength: map['recording_length'] as int,
       recordingSize: map['recording_size'] as int?,
+      thumbnailLocation: map['thumbnail_location'] as String?,
     );
   }
 
@@ -29,6 +32,7 @@ class Recording {
       'recording_location': recordingLocation,
       'recording_length': recordingLength,
       'recording_size': recordingSize,
+      'thumbnail_location': thumbnailLocation,
     };
   }
 
@@ -40,6 +44,7 @@ class Recording {
       recordingLocation,
       recordingLength,
       recordingSize,
+      thumbnailLocation,
     ]);
   }
 
@@ -58,6 +63,7 @@ class Recording {
       recordingLocation,
       recordingLength,
       recordingSize,
+      thumbnailLocation,
       id,
     ]);
   }
