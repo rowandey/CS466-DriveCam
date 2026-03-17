@@ -24,7 +24,7 @@ class AllFootageDisplay extends StatelessWidget {
           ),
         ],
       ),
-      bottomNavigationBar: const MyBottomNavBar(),
+      bottomNavigationBar: const MyBottomNavBar(activePage: NavPage.footage),
     );
   }
 }

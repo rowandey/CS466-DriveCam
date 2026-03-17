@@ -89,7 +89,7 @@ class SettingsScreen extends StatelessWidget {
           ),
         ],
       ),
-      bottomNavigationBar: const MyBottomNavBar(disableSettings: true),
+      bottomNavigationBar: const MyBottomNavBar(activePage: NavPage.settings),
     );
   }
 }
