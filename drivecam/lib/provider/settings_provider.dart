@@ -1,30 +1,61 @@
+import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsProvider extends ChangeNotifier {
-  // Recording settings
-  String framerate = '30 fps';
-  String quality = '720p';
-  String footageLimit = '2h';
-  String storageLimit = '8GB';
+  // All Options
+  static const List<String> framerateOptions = ['15 fps', '30 fps', '60 fps'];
+  static const List<String> qualityOptions = ['480p', '720p', '1080p', '4K'];
+  static const List<String> footageLimitOptions = ['30min', '1h', '1.5h', '2h', '3h', '4h', '5h', '6h'];
+  static const List<String> storageLimitOptions = ['1GB', '2GB', '4GB', '8GB', '12GB', '16GB', '32GB', '64GB'];
+  static const List<String> clipDurationOptions = ['30s', '1m', '2m', '3m', '5m'];
+  static const List<String> clipStorageLimitOptions = ['1GB', '2GB', '4GB', '6GB', '8GB'];
 
-  // Clip settings
-  String preDurationLength = '2m';
-  String postDurationLength = '2m';
-  String clipStorageLimit = '4GB';
+  // Mappings
+  static ResolutionPreset qualityToPreset(String quality) {
+    switch (quality) {
+      case '480p': return ResolutionPreset.medium;
+      case '720p': return ResolutionPreset.high;
+      case '1080p': return ResolutionPreset.veryHigh;
+      case '4K': return ResolutionPreset.ultraHigh;
+      default: return ResolutionPreset.high;
+    }
+  }
+
+  static int framerateToFps(String framerate) {
+    switch (framerate) {
+      case '15 fps': return 15;
+      case '30 fps': return 30;
+      case '60 fps': return 60;
+      default: return 30;
+    }
+  }
+
+  // Recording default settings
+  String framerate = framerateOptions[1];
+  String quality = qualityOptions[1];
+  String footageLimit = footageLimitOptions[3];
+  String storageLimit = storageLimitOptions[2];
+
+  // Clip default settings
+  String preDurationLength = clipDurationOptions[2];
+  String postDurationLength = clipDurationOptions[2];
+  String clipStorageLimit = clipStorageLimitOptions[1];
 
   Future<void> loadPrefs() async {
     final prefs = SharedPreferencesAsync();
-    framerate = await prefs.getString('framerate') ?? '30 fps';
-    quality = await prefs.getString('quality') ?? '720p';
-    footageLimit = await prefs.getString('footageLimit') ?? '2h';
-    storageLimit = await prefs.getString('storageLimit') ?? '8GB';
-    preDurationLength = await prefs.getString('preDurationLength') ?? '2m';
-    postDurationLength = await prefs.getString('postDurationLength') ?? '2m';
-    clipStorageLimit = await prefs.getString('clipStorageLimit') ?? '4GB';
+    framerate = await prefs.getString('framerate') ?? framerateOptions[1];
+    quality = await prefs.getString('quality') ?? qualityOptions[1];
+    footageLimit = await prefs.getString('footageLimit') ?? footageLimitOptions[3];
+    storageLimit = await prefs.getString('storageLimit') ?? storageLimitOptions[2];
+    preDurationLength = await prefs.getString('preDurationLength') ?? clipDurationOptions[2];
+    postDurationLength = await prefs.getString('postDurationLength') ?? clipDurationOptions[2];
+    clipStorageLimit = await prefs.getString('clipStorageLimit') ?? clipStorageLimitOptions[1];
     notifyListeners();
   }
 
+  // Setters
+  // Set shared preferences after getting notification out to prevent delays
   void setFramerate(String value) async {
     framerate = value;
     notifyListeners();
