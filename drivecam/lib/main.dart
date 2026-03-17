@@ -5,6 +5,7 @@ import 'package:drivecam/widgets/app_bars/bottom_app_bar.dart';
 import 'package:drivecam/provider/recording_provider.dart';
 import 'package:drivecam/provider/settings_provider.dart';
 import 'package:drivecam/provider/theme_provider.dart';
+import 'package:drivecam/widgets/recording_indicator.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -47,7 +48,12 @@ class MainApp extends StatelessWidget {
       darkTheme: ThemeData(colorScheme: themeProvider.darkColorScheme),
       themeMode: themeMode,
       home: Scaffold(
-        body: HomePage(camera: camera),
+        body: Stack(
+          children: [
+            HomePage(camera: camera),
+            RecordingIndicator(),
+          ],
+        ),
         bottomNavigationBar: const MyBottomNavBar(),
       ),
     );
