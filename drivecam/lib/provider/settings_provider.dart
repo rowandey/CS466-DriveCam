@@ -42,6 +42,9 @@ class SettingsProvider extends ChangeNotifier {
   String postDurationLength = clipDurationOptions[2];
   String clipStorageLimit = clipStorageLimitOptions[1];
 
+  // Onboarding
+  bool onboardingComplete = false;
+
   Future<void> loadPrefs() async {
     final prefs = SharedPreferencesAsync();
     framerate = await prefs.getString('framerate') ?? framerateOptions[1];
@@ -51,7 +54,14 @@ class SettingsProvider extends ChangeNotifier {
     preDurationLength = await prefs.getString('preDurationLength') ?? clipDurationOptions[2];
     postDurationLength = await prefs.getString('postDurationLength') ?? clipDurationOptions[2];
     clipStorageLimit = await prefs.getString('clipStorageLimit') ?? clipStorageLimitOptions[1];
+    onboardingComplete = await prefs.getBool('onboardingComplete') ?? false;
     notifyListeners();
+  }
+
+  Future<void> completeOnboarding() async {
+    onboardingComplete = true;
+    notifyListeners();
+    await SharedPreferencesAsync().setBool('onboardingComplete', true);
   }
 
   // Setters

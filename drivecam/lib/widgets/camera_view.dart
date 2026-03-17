@@ -5,31 +5,30 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 class CameraView extends StatefulWidget {
-  final CameraDescription camera;
-  const CameraView({super.key, required this.camera});
+  const CameraView({super.key});
 
   @override
   State<CameraView> createState() => _CameraViewState();
 }
 
-
 class _CameraViewState extends State<CameraView> {
-  late CameraController _controller;
-  late Future<void> _initializeControllerFuture;
+  CameraController? _controller;
+  late Future<void> _initFuture;
+  CameraDescription? _camera;
   String? _currentQuality;
   String? _currentFramerate;
 
-  void _initCamera(String quality, String framerate) {
-    _controller = CameraController(
-      widget.camera,
+  Future<void> _initCamera(String quality, String framerate) async {
+    _camera ??= (await availableCameras()).first;
+    final controller = CameraController(
+      _camera!,
       SettingsProvider.qualityToPreset(quality),
       fps: SettingsProvider.framerateToFps(framerate),
     );
-
-    final recordingProvider = context.read<RecordingProvider>();
-    _initializeControllerFuture = _controller.initialize().then((_) {
-      recordingProvider.setCameraController(_controller);
-    });
+    await controller.initialize();
+    if (!mounted) return;
+    context.read<RecordingProvider>().setCameraController(controller);
+    _controller = controller;
     _currentQuality = quality;
     _currentFramerate = framerate;
   }
@@ -38,7 +37,7 @@ class _CameraViewState extends State<CameraView> {
   void initState() {
     super.initState();
     final settings = context.read<SettingsProvider>();
-    _initCamera(settings.quality, settings.framerate);
+    _initFuture = _initCamera(settings.quality, settings.framerate);
   }
 
   @override
@@ -48,32 +47,33 @@ class _CameraViewState extends State<CameraView> {
     final quality = settings.quality;
     final framerate = settings.framerate;
     if (_currentQuality != null && (quality != _currentQuality || framerate != _currentFramerate)) {
-      _controller.dispose();
-      setState(() => _initCamera(quality, framerate));
+      _controller?.dispose();
+      setState(() {
+        _controller = null;
+        _initFuture = _initCamera(quality, framerate);
+      });
     }
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controller?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<void>(
-      future: _initializeControllerFuture,
+      future: _initFuture,
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.done) {
-          return InkWell(
-            child: SizedBox.expand(
-              child: FittedBox(
-                fit: BoxFit.cover,
-                child: SizedBox(
-                  width: _controller.value.previewSize?.height ?? 1,
-                  height: _controller.value.previewSize?.width ?? 1,
-                  child: CameraPreview(_controller),
-                ),
+        if (snapshot.connectionState == ConnectionState.done && _controller != null) {
+          return SizedBox.expand(
+            child: FittedBox(
+              fit: BoxFit.cover,
+              child: SizedBox(
+                width: _controller!.value.previewSize?.height ?? 1,
+                height: _controller!.value.previewSize?.width ?? 1,
+                child: CameraPreview(_controller!),
               ),
             ),
           );
