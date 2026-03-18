@@ -18,19 +18,31 @@ class AllFootageDisplay extends StatelessWidget {
           children: [
             const Padding(
               padding: EdgeInsets.fromLTRB(12, 12, 12, 4),
-              child: Text('Clips', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              child: Text('Clips', style: TextStyle(fontSize: 22)),
             ),
-            const ClipDisplay(),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 8, 8, 12),
+              child: const ClipDisplay(),
+            ),
+
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Divider(),
+            ),
+
             const Padding(
-              padding: EdgeInsets.fromLTRB(12, 12, 12, 4),
-              child: Text('Recording', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              padding: EdgeInsets.fromLTRB(12, 5, 12, 4),
+              child: Text('Recording', style: TextStyle(fontSize: 22)),
             ),
-            InkWell(
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const FootageViewer()),
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: InkWell(
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const FootageViewer()),
+                ),
+                child: const RecordingDisplay(),
               ),
-              child: const RecordingDisplay(),
             ),
           ],
         ),
