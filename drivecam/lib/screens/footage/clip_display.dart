@@ -1,12 +1,32 @@
 import 'dart:io';
 import 'package:drivecam/models/clip.dart';
 import 'package:drivecam/screens/footage/footage_viewer.dart';
+import 'package:drivecam/widgets/delete_button.dart';
 import 'package:flutter/material.dart';
 
-class ClipDisplay extends StatelessWidget {
+class ClipDisplay extends StatefulWidget {
   const ClipDisplay({super.key});
 
-  static String _formatDuration(int totalSeconds) {
+  @override
+  State<ClipDisplay> createState() => _ClipDisplayState();
+}
+
+class _ClipDisplayState extends State<ClipDisplay> {
+  late Future<List<Clip>> _clipsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _clipsFuture = Clip.loadAllClips();
+  }
+
+  void _refresh() {
+    setState(() {
+      _clipsFuture = Clip.loadAllClips();
+    });
+  }
+
+  static String formatDuration(int totalSeconds) {
     final hours = totalSeconds ~/ 3600;
     final minutes = (totalSeconds % 3600) ~/ 60;
     final seconds = totalSeconds % 60;
@@ -15,7 +35,7 @@ class ClipDisplay extends StatelessWidget {
         '${seconds.toString().padLeft(2, '0')}';
   }
 
-  static String _formatSize(int bytes) {
+  static String formatSize(int bytes) {
     if (bytes >= 1024 * 1024 * 1024) {
       final gb = bytes / (1024 * 1024 * 1024);
       return '${gb.toStringAsFixed(2)} GB';
@@ -27,7 +47,7 @@ class ClipDisplay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<List<Clip>>(
-      future: Clip.loadAllClips(),
+      future: _clipsFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const SizedBox(
@@ -51,7 +71,10 @@ class ClipDisplay extends StatelessWidget {
             childAspectRatio: 16 / 9,
           ),
           itemCount: clips.length,
-          itemBuilder: (context, index) => _ClipTile(clip: clips[index]),
+          itemBuilder: (context, index) => _ClipTile(
+            clip: clips[index],
+            onDeleted: _refresh,
+          ),
         );
       },
     );
@@ -60,12 +83,13 @@ class ClipDisplay extends StatelessWidget {
 
 class _ClipTile extends StatelessWidget {
   final Clip clip;
-  const _ClipTile({required this.clip});
+  final VoidCallback onDeleted;
+  const _ClipTile({required this.clip, required this.onDeleted});
 
   @override
   Widget build(BuildContext context) {
-    final durationText = ClipDisplay._formatDuration(clip.clipLength);
-    final sizeText = ClipDisplay._formatSize(clip.clipSize);
+    final durationText = _ClipDisplayState.formatDuration(clip.clipLength);
+    final sizeText = _ClipDisplayState.formatSize(clip.clipSize);
     final hasThumbnail = File(clip.thumbnailLocation).existsSync();
 
     return InkWell(
@@ -99,6 +123,18 @@ class _ClipTile extends StatelessWidget {
                 style: const TextStyle(color: Colors.white, fontSize: 10),
               ),
             ),
+          ),
+          DeleteButton(
+            onDelete: () async {
+              try {
+                await File(clip.clipLocation).delete();
+              } catch (_) {}
+              try {
+                await File(clip.thumbnailLocation).delete();
+              } catch (_) {}
+              await clip.deleteClipDB();
+              onDeleted();
+            },
           ),
         ],
       ),
