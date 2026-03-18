@@ -13,6 +13,8 @@ import '../models/recording.dart';
 class RecordingProvider extends ChangeNotifier {
   bool isRecording = false;
   bool clipSaved = false;
+  bool clipInProgress = false;
+  DateTime? clipProgressEndTime;
   CameraController? _controller;
   DateTime? _recordingStartTime;
   DateTime? get recordingStartTime => _recordingStartTime;
@@ -29,6 +31,19 @@ class RecordingProvider extends ChangeNotifier {
   void dismissClipNotification() {
     clipSaved = false;
     notifyListeners();
+  }
+
+  void startClipProgress(int postDurationSeconds) {
+    clipInProgress = true;
+    clipSaved = false;
+    clipProgressEndTime =
+        DateTime.now().add(Duration(seconds: postDurationSeconds));
+    notifyListeners();
+  }
+
+  void _clearClipProgress() {
+    clipInProgress = false;
+    clipProgressEndTime = null;
   }
 
   void setCameraController(CameraController controller) {
@@ -277,6 +292,7 @@ class RecordingProvider extends ChangeNotifier {
       clipLocation: clipPath,
       thumbnailLocation: thumbnailPath,
     ).insertClipDB();
+    _clearClipProgress();
     clipSaved = true;
   }
 
@@ -323,6 +339,7 @@ class RecordingProvider extends ChangeNotifier {
       clipLocation: clipPath,
       thumbnailLocation: thumbnailPath,
     ).insertClipDB();
+    _clearClipProgress();
     clipSaved = true;
   }
 }

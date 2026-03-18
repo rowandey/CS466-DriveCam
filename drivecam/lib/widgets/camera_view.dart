@@ -37,7 +37,6 @@ class _CameraViewState extends State<CameraView> {
   }
 
   Future<void> _triggerClipSave() async {
-    print("hi");
     final recordingProvider = context.read<RecordingProvider>();
     final settingsProvider = context.read<SettingsProvider>();
 
@@ -56,10 +55,10 @@ class _CameraViewState extends State<CameraView> {
       );
     } else {
       _clipTimer?.cancel();
+      recordingProvider.startClipProgress(secondsPost);
       // Clip is only actually taken and saved once post second counter expires.
       // Unfortunately, the technology to look into the future doesn't exist yet.
       _clipTimer = Timer(Duration(seconds: secondsPost), () {
-        print("ping");
         recordingProvider.saveClipFromLive(
           clipDurationSeconds: seconds,
           secondsPre: secondsPre,
