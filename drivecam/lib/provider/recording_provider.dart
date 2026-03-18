@@ -15,6 +15,7 @@ class RecordingProvider extends ChangeNotifier {
   bool clipSaved = false;
   CameraController? _controller;
   DateTime? _recordingStartTime;
+  DateTime? get recordingStartTime => _recordingStartTime;
   // Tracks the start of the current camera segment (resets on each clip save).
   // Used to compute correct in-segment offsets for clip extraction.
   DateTime? _segmentStartTime;
