@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:camera/camera.dart';
+import 'package:drivecam/provider/clip_provider.dart';
 import 'package:drivecam/provider/recording_provider.dart';
 import 'package:drivecam/provider/settings_provider.dart';
 import 'package:flutter/material.dart';
@@ -38,7 +39,7 @@ class _CameraViewState extends State<CameraView> {
   }
 
   Future<void> _triggerClipSave() async {
-    final recordingProvider = context.read<RecordingProvider>();
+    final clipProvider = context.read<ClipProvider>();
     final settingsProvider = context.read<SettingsProvider>();
 
     final secondsPre = SettingsProvider.clipDurationToSeconds(
@@ -50,17 +51,17 @@ class _CameraViewState extends State<CameraView> {
     final seconds = secondsPre + secondsPost;
 
     if (secondsPost == 0) {
-      recordingProvider.saveClipFromLive(
+      clipProvider.saveClipFromLive(
         clipDurationSeconds: seconds,
         secondsPre: secondsPre,
       );
     } else {
       _clipTimer?.cancel();
-      recordingProvider.startClipProgress(secondsPost);
+      clipProvider.startClipProgress(secondsPost);
       // Clip is only actually taken and saved once post second counter expires.
       // Unfortunately, the technology to look into the future doesn't exist yet.
       _clipTimer = Timer(Duration(seconds: secondsPost), () {
-        recordingProvider.saveClipFromLive(
+        clipProvider.saveClipFromLive(
           clipDurationSeconds: seconds,
           secondsPre: secondsPre,
         );

@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:drivecam/provider/recording_provider.dart';
+import 'package:drivecam/provider/clip_provider.dart';
 import 'package:drivecam/provider/theme_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -34,12 +34,12 @@ class _ClipSavedNotificationState extends State<ClipSavedNotification> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<RecordingProvider>(
-      builder: (context, recording, _) {
-        _ensureTimer(recording.clipInProgress);
+    return Consumer<ClipProvider>(
+      builder: (context, clip, _) {
+        _ensureTimer(clip.clipInProgress);
 
-        if (recording.clipInProgress && recording.clipProgressEndTime != null) {
-          final remaining = recording.clipProgressEndTime!
+        if (clip.clipInProgress && clip.clipProgressEndTime != null) {
+          final remaining = clip.clipProgressEndTime!
               .difference(DateTime.now())
               .inSeconds
               .clamp(0, 9999);
@@ -49,12 +49,12 @@ class _ClipSavedNotificationState extends State<ClipSavedNotification> {
           );
         }
 
-        if (recording.clipSaved) {
+        if (clip.clipSaved) {
           final green = context.read<ThemeProvider>().clipSavedColor;
           return _Pill(
             color: green,
             text: 'Clip Saved',
-            onTap: recording.dismissClipNotification,
+            onTap: clip.dismissClipNotification,
           );
         }
 
