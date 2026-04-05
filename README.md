@@ -1,6 +1,6 @@
 # DriveCam 📷
 
-**CS466: Software Startup I — Oregon State University Cascades**  
+**SE467: Software Startup II — Oregon State University Cascades**  
 *Team: Rowan Dey, Keenan Bromley, Xander Bailey, Sasha Hackenbruck*  
 *Professor: Jesse Rosenzweig*
 
