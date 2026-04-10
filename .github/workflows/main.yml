@@ -97,13 +97,32 @@ jobs:
           fi
           echo "tag=$VERSION" >> $GITHUB_OUTPUT
 
-      # Create a versioned GitHub Release without attaching binary assets.
+      # Download the APK artifact built in the previous job so it can be attached to the release.
+      # This allows users to download the APK directly from the GitHub Release page instead of
+      # navigating to the Actions tab. The artifact name includes the run number to ensure uniqueness.
+      - name: Download APK artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: drivecam-apk-${{ github.run_number }}
+          path: ./release-assets
+
+      # Rename the APK file to include the version tag in its name, making it easier to identify
+      # which version the APK corresponds to when downloaded from the release page.
+      - name: Rename APK with version tag
+        run: |
+          mv ./release-assets/app-release.apk ./release-assets/drivecam-${{ steps.version.outputs.tag }}.apk
+
+      # Create a versioned GitHub Release and attach the APK as a release asset.
+      # The APK is now available for download directly from the release page, making it
+      # easier for users and testers to access the built application.
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag }}
           name: DriveCam Release ${{ steps.version.outputs.tag }}
+          files: ./release-assets/drivecam-${{ steps.version.outputs.tag }}.apk
           generate_release_notes: true
           body: |
-            APK is uploaded as a workflow artifact for this run.
-            Download the artifact from the Actions run page (run #${{ github.run_number }}).
+            DriveCam Release ${{ steps.version.outputs.tag }}
+            
+            The APK is available as an asset below for direct download.
