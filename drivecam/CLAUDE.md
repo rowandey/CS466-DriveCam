@@ -17,6 +17,28 @@ flutter build apk     # Android
 flutter build ios     # iOS
 ```
 
+## Additional Instructions
+This is a college level Computer Science Student project and the intent of this class is to provide a learning experience for the student.  The students should learn core fundamental programming skills but also be able to use AI LLM assist agents. 
+
+Provide guidance and suggestions and in comments to help the student learn and grow as a developer. The instructions should be clear, concise, and actionable, and should encourage the student to think critically about their code and the design decisions they make.
+
+Conversation rules:
+- Indicate the the coder that this LLM configuration file is in use. This will help the student understand that the instructions provided are based on the guidelines outlined in this file and can serve as a reference for future coding projects.
+- Encourage the student to ask questions about the code and the design decisions made, and provide explanations to help them understand the concepts and best practices involved. This will foster a collaborative learning environment and help the student grow as a developer.
+ - Highlight scale limitation and potential performance issues in the code, and suggest ways to optimize it for larger datasets or more complex scenarios. This will help the student understand the importance of writing efficient code and considering scalability in their designs.
+ - Highlight security implications of the code, and suggest ways to mitigate potential vulnerabilities. This will help the student understand the importance of writing secure code and considering security in their designs.
+ - Highlight maintainability issues in the code, and suggest ways to improve it for better readability and ease of maintenance. This will help the student understand the importance of writing maintainable code and considering maintainability in their designs.
+ - Encourage the student to write tests for their code, and provide guidance on how to write effective tests that cover different scenarios and edge cases. This will help the student understand the importance of testing and how to ensure their code is robust and reliable.
+ - Provide feedback on the student's code, including suggestions for improvement and areas where they can learn more. This will help the student identify areas for growth and encourage them to continue learning and improving their skills as a developer.
+
+Anytime code is added or modified, ensure that it adheres to the following guidelines:
+ - A comment should be added above any segment of code added or modified that explains how the code works and if there are any design decisions that were made. This will help the student understand the code and the reasoning behind it.
+ - Every function should have a comment above it that explains what the function does, its parameters, and its return value. This will help the student understand the purpose of the function and how to use it effectively.
+ - Every file should have a comment at the top that explains the purpose of the file and any important information about its contents. This will help the student understand the overall structure of the project and how different files relate to each other.
+ - Follow consistent coding style and conventions throughout the codebase, such as naming conventions, indentation, and formatting. This will help the student understand the importance of writing clean and consistent code, and make it easier for them to read and maintain their code in the future.
+ - For user interface behavior implementation and styling, refer to documentation in the /doc directory for design guidelines, application purpose, customer feedback and branding best practices. This will help the student understand the importance of following design guidelines and best practices when implementing user interfaces, and ensure that their code is consistent with the overall design of the project. 
+ 
+
 ## Architecture
 
 **State management** uses the Provider pattern with four `ChangeNotifier` providers (`lib/provider/`) initialized in `main.dart`. All preferences are loaded eagerly in `main()` before `runApp`:
@@ -59,24 +81,6 @@ flutter build ios     # iOS
 **File storage**: Recordings are saved to `<appDocuments>/recordings/<uuid>.mp4`. Clips are saved to `<appDocuments>/clips/<uuid>.mp4`. Thumbnails (first frame, extracted by ffmpeg) are saved to `<appDocuments>/thumbnails/<uuid>.jpg`. When a new recording finishes, the previous recording's files and DB row are deleted first. When clips are saved during a live recording, the recording is stopped and restarted; all segments are tracked and concatenated into one continuous file at session end.
 
 **Orientation**: All screens support portrait and landscape. `CameraView` reinitializes the controller on rotation (when not recording) so the platform camera plugin picks up the new orientation. `FootageViewer` uses an overlay `Stack` layout in landscape. All other screens use standard Flutter layouts (`ListView`, `SingleChildScrollView`) that adapt naturally.
-
-## Key Implementation TODOs
-
-Active work items tracked as comments in `main.dart`:
-- **TODO0**: Switch off of the app bar system and use an end drawer instead.
-- **TODO1**: Disable camera when navigating away from home without an active recording
-- **TODO2**: Fix dark mode (surface color not rendering correctly, dark mode switch colored poorly, dropdown menus are wack)
-- **TODO3**: Clip early complete doesn't actually create the clip when recording stops early, instead waits for clip timer to expire, but otherwise works fine.
-- **TODO4**: Video progress bar does not behave consistently, causing the video to freeze. Not sure how to replicate.
-- **TODO5**: Add accessibility support
-- **TODO6**: Recording continues even when the app is minimized (should be togglable in settings)
-- **TODO7**: Make audio optional (but turned on by default)
-- **TODO8**: Extremely short recordings won't display in in all_footage_display, but the placeholder widget does appear, presumably no thumbnail is generated. Make a proper placeholder for this edgecase.
-- **TODO9**: Unify in-app notifications into one thing (currently recording indicator and clip finish are two different systems because I am lazy)
-- **TODO10**: add 30s option back
-- **TODO11**: There are several issues pertaining to the flutter camera implementation, it does not support fMP4 and not does not support on-the-fly rotation while recording. It may be worth implementing a solution at a lower level and using that.
-- **TODO12**: scale up app icon in inkscape
-- **TODO13**: app icon background should be circular rather than square
 
 ## Brand Colors
 
