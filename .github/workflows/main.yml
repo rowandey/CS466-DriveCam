@@ -1,13 +1,15 @@
-# This workflow validates and ships the Flutter Android app from drivecam/.
+# This workflow validates and ships the Flutter Android app from drivecam.
 # Pushes to main run lint checks, tests, build, and upload the APK as a workflow artifact.
 # Manual runs can also create a GitHub Release version after a successful build.
 name: DriveCam CI Release
 
-# Trigger on pushes to main, and allow maintainers to manually trigger release creation.
+# Trigger on pushes to main, tag creation, and allow maintainers to manually trigger release creation.
 on:
   push:
     branches:
       - main
+    tags:
+      - 'v*'
   workflow_dispatch:
     inputs:
       version:
@@ -68,7 +70,8 @@ jobs:
 
   release-manual:
     name: Create Manual GitHub Release
-    if: github.event_name == 'workflow_dispatch'
+    # Run when manually dispatched OR when a version tag (v*) is created
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
     needs: build-test-artifact
     runs-on: ubuntu-latest
 
@@ -81,12 +84,25 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # Extract version tag from git reference when triggered by tag creation
+      - name: Determine release version
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            # Extract tag name from refs/tags/v1.2.3
+            VERSION="${{ github.ref }}"
+            VERSION="${VERSION#refs/tags/}"
+          fi
+          echo "tag=$VERSION" >> $GITHUB_OUTPUT
+
       # Create a versioned GitHub Release without attaching binary assets.
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event.inputs.version }}
-          name: DriveCam Release ${{ github.event.inputs.version }}
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: DriveCam Release ${{ steps.version.outputs.tag }}
           generate_release_notes: true
           body: |
             APK is uploaded as a workflow artifact for this run.
