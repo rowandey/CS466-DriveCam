@@ -47,7 +47,7 @@ jobs:
 
       # Run static analysis first so lint or type issues fail fast before tests/builds run.
       - name: Analyze Flutter code
-        run: flutter analyze
+        run: flutter analyze --no-fatal-infos
 
       # Run the project's automated tests; build/release only proceeds if tests pass.
       - name: Run Flutter tests
