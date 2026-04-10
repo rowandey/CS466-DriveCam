@@ -1,0 +1,101 @@
+# GitHub Actions workflow for running Flutter tests on PR creation/update
+# This workflow:
+# - Runs when a PR is created, updated, or reopened
+# - Sets up Flutter SDK
+# - Runs all tests in the test/ directory
+# - Reports test results and coverage to the PR
+# - Provides clear feedback on test success/failure
+
+name: Flutter Tests
+
+on:
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened]
+
+jobs:
+  test:
+    name: Run Flutter Tests
+    runs-on: ubuntu-latest
+
+    # Grant the GITHUB_TOKEN permission to post comments on PRs
+    # pull-requests: write allows the workflow to comment on pull requests
+    # contents: read allows the workflow to read repository contents
+    permissions:
+      pull-requests: write
+      contents: read
+
+    # Use a single working directory so all Flutter commands target the project root.
+    defaults:
+      run:
+        working-directory: drivecam
+
+    steps:
+      # Check out the code from the PR
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Set up Flutter SDK
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      # Change to drivecam directory since pubspec.yaml is in a subdirectory
+      - name: Get dependencies
+        run: flutter pub get
+
+      # Run Flutter tests
+      - name: Run tests
+        run: flutter test -r expanded > test-results.json || true
+
+      # Upload test results as artifact (optional but useful)
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: drivecam/test-results.json
+
+      # Post test results summary to PR
+      - name: Comment test results on PR
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const testResults = fs.readFileSync('drivecam/test-results.json', 'utf8');
+            
+            // Parse the expanded format output for test counts
+            // Look for the final summary line with format: "+X -Y: ..."
+            const lines = testResults.split('\n');
+            let passed = 0;
+            let failed = 0;
+            
+            // Search for lines with the pattern "+N" and "-N" indicating test results
+            lines.forEach(line => {
+              const passMatch = line.match(/\+(\d+)/);
+              const failMatch = line.match(/\-(\d+)/);
+            
+              if (passMatch) {
+                passed = Math.max(passed, parseInt(passMatch[1]));
+              }
+              if (failMatch) {
+                failed = Math.max(failed, parseInt(failMatch[1]));
+              }
+            });
+            
+            // Determine status emoji based on results
+            const status = failed > 0 ? '❌' : '✅';
+            const summary = `## Test Results ${status}\n- ✅ Passed: ${passed}\n- ❌ Failed: ${failed}`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: summary
+            });
