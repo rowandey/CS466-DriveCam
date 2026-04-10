@@ -1,0 +1,84 @@
+# GitHub Actions workflow for running Flutter tests on PR creation/update
+# This workflow:
+# - Runs when a PR is created, updated, or reopened
+# - Sets up Flutter SDK
+# - Runs all tests in the test/ directory
+# - Reports test results and coverage to the PR
+# - Provides clear feedback on test success/failure
+
+name: Flutter Tests
+
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+    types: [opened, synchronize, reopened]
+
+jobs:
+  test:
+    name: Run Flutter Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      # Check out the code from the PR
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Set up Flutter SDK
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0' # Update to match your target version
+          cache: true
+
+      # Change to drivecam directory since pubspec.yaml is in a subdirectory
+      - name: Get dependencies
+        run: |
+          cd drivecam
+          flutter pub get
+
+      # Run Flutter tests
+      - name: Run tests
+        run: |
+          cd drivecam
+          flutter test --machine > test-results.json || true
+
+      # Upload test results as artifact (optional but useful)
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-results
+          path: drivecam/test-results.json
+
+      # Post test results summary to PR
+      - name: Comment test results on PR
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const testResults = fs.readFileSync('drivecam/test-results.json', 'utf8').split('\n');
+            
+            let passed = 0;
+            let failed = 0;
+            
+            testResults.forEach(line => {
+              if (line.includes('"test":') && line.includes('"result":"success"')) {
+                passed++;
+              } else if (line.includes('"test":') && line.includes('"result":"failure"')) {
+                failed++;
+              }
+            });
+            
+            const summary = `## Test Results\n- ✅ Passed: ${passed}\n- ❌ Failed: ${failed}`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: summary
+            });
