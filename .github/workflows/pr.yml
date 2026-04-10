@@ -91,7 +91,7 @@ jobs:
             
             // Determine status emoji based on results
             const status = failed > 0 ? '❌' : '✅';
-            const summary = `${status} ## Test Results\n- ✅ Passed: ${passed}\n- ❌ Failed: ${failed}`;
+            const summary = `## Test Results ${status}\n- ✅ Passed: ${passed}\n- ❌ Failed: ${failed}`;
             
             github.rest.issues.createComment({
               issue_number: context.issue.number,
