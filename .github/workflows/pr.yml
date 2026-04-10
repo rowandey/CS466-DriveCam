@@ -61,7 +61,7 @@ jobs:
           name: test-results
           path: drivecam/test-results.json
 
-          # Post test results summary to PR
+      # Post test results summary to PR
       - name: Comment test results on PR
         if: always()
         uses: actions/github-script@v7
