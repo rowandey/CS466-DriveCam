@@ -125,10 +125,7 @@ class SettingsProvider extends ChangeNotifier {
     await SharedPreferencesAsync().setString('clipStorageLimit', value);
   }
 
-  /// Toggles microphone recording on or off.
-  /// [value] — true to record audio, false for silent video.
-  /// The camera controller must be reinitialized after this change for it to
-  /// take effect (handled by CameraView.didChangeDependencies).
+  // Audio toggle
   void setAudioEnabled(bool value) async {
     audioEnabled = value;
     notifyListeners();

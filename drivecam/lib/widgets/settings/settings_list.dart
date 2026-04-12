@@ -51,11 +51,6 @@ class SettingsList extends StatelessWidget {
           options: SettingsProvider.storageLimitOptions,
           onChanged: settingsProvider.setStorageLimit,
         ),
-
-        // Audio toggle — enables or disables microphone capture for recordings.
-        // If a recording is active when this is changed, CameraView will
-        // automatically stop the current segment, reinitialize the camera
-        // controller with the new setting, and resume recording.
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [

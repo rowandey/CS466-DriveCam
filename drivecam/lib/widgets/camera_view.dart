@@ -26,14 +26,7 @@ class _CameraViewState extends State<CameraView> {
   Orientation? _currentOrientation;
   Timer? _clipTimer;
 
-  /// Initializes (or reinitializes) the [CameraController] with the given
-  /// settings. Sets [_controller], [_currentQuality], [_currentFramerate], and
-  /// [_currentAudioEnabled] once complete so [didChangeDependencies] can detect
-  /// future changes.
-  ///
-  /// [quality] — recording resolution label (e.g. '720p').
-  /// [framerate] — framerate label (e.g. '30 fps').
-  /// [audioEnabled] — whether to record microphone audio.
+  /// Initializes (or reinitializes) the [CameraController] with the given settings.
   Future<void> _initCamera(
     String quality,
     String framerate,
@@ -41,8 +34,6 @@ class _CameraViewState extends State<CameraView> {
   ) async {
     _camera ??= (await availableCameras()).first;
     // enableAudio controls whether the microphone is captured.
-    // This must be set at construction time — it cannot be changed on a live
-    // controller, which is why we reinitialize when the setting changes.
     final controller = CameraController(
       _camera!,
       SettingsProvider.qualityToPreset(quality),
@@ -99,10 +90,6 @@ class _CameraViewState extends State<CameraView> {
   /// Stops the current recording segment, disposes the old controller,
   /// reinitializes with new settings (e.g. a changed audio toggle), then
   /// restarts recording so the session continues uninterrupted.
-  ///
-  /// Passing [oldController] avoids a null-reference issue because [setState]
-  /// clears [_controller] before this async method runs.
-  /// [quality], [framerate], [audioEnabled] — the new camera settings to apply.
   Future<void> _reinitCameraWhileRecording(
     CameraController oldController,
     String quality,
@@ -150,11 +137,7 @@ class _CameraViewState extends State<CameraView> {
         _currentAudioEnabled != null && audioEnabled != _currentAudioEnabled;
 
     // Special case: audio setting changed while actively recording.
-    // We can't just reinitialize the controller (that would lose the segment),
-    // so we stop/save the current segment and restart on a new controller.
     if (audioChanged && context.read<RecordingProvider>().isRecording) {
-      // Update immediately to prevent this branch from re-triggering on the
-      // next rebuild before the async reinit completes.
       _currentAudioEnabled = audioEnabled;
       final oldController = _controller!;
       setState(() {
