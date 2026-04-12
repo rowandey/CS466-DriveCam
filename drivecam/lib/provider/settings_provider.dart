@@ -49,6 +49,8 @@ class SettingsProvider extends ChangeNotifier {
   String quality = qualityOptions[1];
   String footageLimit = footageLimitOptions[3];
   String storageLimit = storageLimitOptions[2];
+  // Audio is enabled by default — disable to record video-only (silent) footage.
+  bool audioEnabled = true;
 
   // Clip default settings
   String preDurationLength = clipDurationOptions[2];
@@ -67,6 +69,8 @@ class SettingsProvider extends ChangeNotifier {
     preDurationLength = await prefs.getString('preDurationLength') ?? clipDurationOptions[2];
     postDurationLength = await prefs.getString('postDurationLength') ?? clipDurationOptions[2];
     clipStorageLimit = await prefs.getString('clipStorageLimit') ?? clipStorageLimitOptions[1];
+    // Default to true so new installs record with audio out of the box.
+    audioEnabled = await prefs.getBool('audioEnabled') ?? true;
     onboardingComplete = await prefs.getBool('onboardingComplete') ?? false;
     notifyListeners();
   }
@@ -119,5 +123,12 @@ class SettingsProvider extends ChangeNotifier {
     clipStorageLimit = value;
     notifyListeners();
     await SharedPreferencesAsync().setString('clipStorageLimit', value);
+  }
+
+  // Audio toggle
+  void setAudioEnabled(bool value) async {
+    audioEnabled = value;
+    notifyListeners();
+    await SharedPreferencesAsync().setBool('audioEnabled', value);
   }
 }

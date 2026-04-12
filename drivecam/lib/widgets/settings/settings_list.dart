@@ -1,3 +1,9 @@
+// settings_list.dart
+// Shared settings UI used by both the main Settings screen and the onboarding
+// flow. Renders dropdowns for recording/clip preferences and toggle switches
+// for boolean settings (audio, dark mode). All state is owned by the providers
+// passed in — this widget is purely presentational.
+
 import 'package:drivecam/provider/settings_provider.dart';
 import 'package:drivecam/provider/theme_provider.dart';
 import 'package:drivecam/widgets/settings/setting_dropdown.dart';
@@ -44,6 +50,16 @@ class SettingsList extends StatelessWidget {
           value: settingsProvider.storageLimit,
           options: SettingsProvider.storageLimitOptions,
           onChanged: settingsProvider.setStorageLimit,
+        ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text("Audio", style: Theme.of(context).textTheme.bodyLarge),
+            Switch(
+              value: settingsProvider.audioEnabled,
+              onChanged: (value) => settingsProvider.setAudioEnabled(value),
+            ),
+          ],
         ),
 
         Divider(),

@@ -20,15 +20,25 @@ class _CameraViewState extends State<CameraView> {
   CameraDescription? _camera;
   String? _currentQuality;
   String? _currentFramerate;
+  // Tracks the audio setting that was used when the controller was last created.
+  // null until the first init completes.
+  bool? _currentAudioEnabled;
   Orientation? _currentOrientation;
   Timer? _clipTimer;
 
-  Future<void> _initCamera(String quality, String framerate) async {
+  /// Initializes (or reinitializes) the [CameraController] with the given settings.
+  Future<void> _initCamera(
+    String quality,
+    String framerate,
+    bool audioEnabled,
+  ) async {
     _camera ??= (await availableCameras()).first;
+    // enableAudio controls whether the microphone is captured.
     final controller = CameraController(
       _camera!,
       SettingsProvider.qualityToPreset(quality),
       fps: SettingsProvider.framerateToFps(framerate),
+      enableAudio: audioEnabled,
     );
     await controller.initialize();
     if (!mounted) return;
@@ -36,6 +46,7 @@ class _CameraViewState extends State<CameraView> {
     _controller = controller;
     _currentQuality = quality;
     _currentFramerate = framerate;
+    _currentAudioEnabled = audioEnabled;
   }
 
   Future<void> _triggerClipSave() async {
@@ -73,7 +84,44 @@ class _CameraViewState extends State<CameraView> {
   void initState() {
     super.initState();
     final settings = context.read<SettingsProvider>();
-    _initFuture = _initCamera(settings.quality, settings.framerate);
+    _initFuture = _initCamera(settings.quality, settings.framerate, settings.audioEnabled);
+  }
+
+  /// Stops the current recording segment, disposes the old controller,
+  /// reinitializes with new settings (e.g. a changed audio toggle), then
+  /// restarts recording so the session continues uninterrupted.
+  Future<void> _reinitCameraWhileRecording(
+    CameraController oldController,
+    String quality,
+    String framerate,
+    bool audioEnabled,
+  ) async {
+    final recordingProvider = context.read<RecordingProvider>();
+    // Guard against concurrent clip saves or other busy operations.
+    if (recordingProvider.isBusy) return;
+
+    recordingProvider.lockBusy();
+    try {
+      // Flush the current video segment to disk so no footage is lost.
+      final xFile = await oldController.stopVideoRecording();
+      // Register the segment so it gets concatenated when recording ends.
+      recordingProvider.addSegment(xFile.path);
+
+      // Dispose the old controller before creating the new one.
+      oldController.dispose();
+
+      // Bring up a fresh controller with the updated settings.
+      await _initCamera(quality, framerate, audioEnabled);
+      if (!mounted) return;
+
+      // Resume recording on the new controller to maintain a continuous session.
+      await _controller!.startVideoRecording();
+      recordingProvider.setSegmentStartTime(DateTime.now());
+    } catch (e) {
+      debugPrint('Camera reinit while recording failed: $e');
+    } finally {
+      recordingProvider.unlockBusy();
+    }
   }
 
   @override
@@ -82,10 +130,34 @@ class _CameraViewState extends State<CameraView> {
     final settingsProvider = context.watch<SettingsProvider>();
     final quality = settingsProvider.quality;
     final framerate = settingsProvider.framerate;
+    final audioEnabled = settingsProvider.audioEnabled;
     final orientation = MediaQuery.of(context).orientation;
 
+    final audioChanged =
+        _currentAudioEnabled != null && audioEnabled != _currentAudioEnabled;
+
+    // Special case: audio setting changed while actively recording.
+    if (audioChanged && context.read<RecordingProvider>().isRecording) {
+      _currentAudioEnabled = audioEnabled;
+      final oldController = _controller!;
+      setState(() {
+        _controller = null;
+        _initFuture = _reinitCameraWhileRecording(
+          oldController,
+          quality,
+          framerate,
+          audioEnabled,
+        );
+      });
+      return;
+    }
+
+    // Include audio changes in the general "settings changed" check so a
+    // non-recording reinit picks up the new enableAudio value.
     final settingsChanged = _currentQuality != null &&
-        (quality != _currentQuality || framerate != _currentFramerate);
+        (quality != _currentQuality ||
+            framerate != _currentFramerate ||
+            audioChanged);
     final orientationChanged =
         _currentOrientation != null && orientation != _currentOrientation;
     _currentOrientation = orientation;
@@ -98,7 +170,7 @@ class _CameraViewState extends State<CameraView> {
       _controller?.dispose();
       setState(() {
         _controller = null;
-        _initFuture = _initCamera(quality, framerate);
+        _initFuture = _initCamera(quality, framerate, audioEnabled);
       });
     }
   }
