@@ -209,7 +209,9 @@ class _CameraViewState extends State<CameraView> {
             children: [
               InkWell(
                 onTap: () {
-                  _triggerClipSave();
+                  if (context.read<RecordingProvider>().isRecording) {
+                    _triggerClipSave();
+                  }
                 },
                 child: SizedBox.expand(
                   child: FittedBox(
