@@ -1,4 +1,5 @@
 import 'package:drivecam/screens/footage/all_footage_display.dart';
+import 'package:drivecam/screens/privacy_page.dart';
 import 'package:drivecam/screens/settings.dart';
 import 'package:flutter/material.dart';
 
@@ -49,6 +50,19 @@ class NavDrawer extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const SettingsScreen()),
+              );
+            },
+          ),
+          // Privacy Page option - navigates to transparency details about
+          // what data the app collects, does not collect, and does not share.
+          ListTile(
+            leading: const Icon(Icons.privacy_tip),
+            title: const Text('Privacy Page'),
+            onTap: () {
+              Navigator.of(context).pop();
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const PrivacyPageScreen()),
               );
             },
           ),
