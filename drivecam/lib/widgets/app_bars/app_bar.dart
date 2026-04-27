@@ -10,15 +10,19 @@ class MyAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AppBar(
-      backgroundColor: Theme.of(context).colorScheme.primary,
-      title: Text(title),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.menu),
-          onPressed: () => Scaffold.of(context).openEndDrawer(),
-        ),
-      ],
+    // Wrap AppBar with Padding to add top spacing and avoid overlaying system status bar icons
+    return SafeArea(
+      minimum: EdgeInsets.only(top: 8.0),
+      child: AppBar(
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        title: Text(title),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: () => Scaffold.of(context).openEndDrawer(),
+          ),
+        ],
+      ),
     );
   }
 }
