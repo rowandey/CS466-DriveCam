@@ -410,7 +410,8 @@ class _CameraViewState extends State<CameraView> {
         //
         // In landscape the sensor's long axis aligns with the display, so no
         // correction is needed.
-        final quarterTurns = isPortrait ? _sensorOrientation ~/ 90 : 0;
+        final quarterTurns = isPortrait ? 0 : _sensorOrientation ~/ 90;
+        print("orientation: " + MediaQuery.orientationOf(context).toString());
 
         final sensorW = _previewWidth.toDouble();
         final sensorH = _previewHeight.toDouble();
