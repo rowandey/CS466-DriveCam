@@ -228,11 +228,13 @@ class _CameraViewState extends State<CameraView> {
               Positioned(
                 top: 8,
                 right: 8,
-                child: IconButton(
-                  icon: const Icon(Icons.menu),
-                  color: Colors.white,
-                  iconSize: 28,
-                  onPressed: () => Scaffold.of(context).openEndDrawer(),
+                child: SafeArea(
+                  child: IconButton(
+                    icon: const Icon(Icons.menu),
+                    color: Colors.white,
+                    iconSize: 28,
+                    onPressed: () => Scaffold.of(context).openEndDrawer(),
+                  ),
                 ),
               ),
             ],
