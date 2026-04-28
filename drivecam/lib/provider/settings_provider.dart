@@ -12,6 +12,23 @@ class SettingsProvider extends ChangeNotifier {
   static const List<String> clipStorageLimitOptions = ['1GB', '2GB', '4GB', '6GB', '8GB'];
 
   // Mappings
+
+  /// Map a quality label to a (width, height) pixel size for the native
+  /// Camera2 recorder. Values are standard resolutions that virtually all
+  /// Android cameras support; HlsRecorderHandler snaps to the closest
+  /// actually-supported size if the exact value is unavailable.
+  static ({int width, int height}) qualityToSize(String quality) {
+    switch (quality) {
+      case '480p':  return (width: 640,  height: 480);
+      case '720p':  return (width: 1280, height: 720);
+      case '1080p': return (width: 1920, height: 1080);
+      case '4K':    return (width: 3840, height: 2160);
+      default:      return (width: 1280, height: 720);
+    }
+  }
+
+  /// Kept for backward compatibility with existing unit tests.
+  /// New code should use [qualityToSize] instead.
   static ResolutionPreset qualityToPreset(String quality) {
     switch (quality) {
       case '480p': return ResolutionPreset.medium;

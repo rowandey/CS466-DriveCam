@@ -24,7 +24,11 @@ android {
         applicationId = "com.example.drivecam"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        //
+        // minSdk is pinned to 26 (Android 8.0, 2017) because the HLS recorder
+        // uses MediaRecorder.setNextOutputFile() which was added in API 26.
+        // This eliminates the per-segment freeze; see HlsRecorderHandler.kt.
+        minSdk = 26
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
