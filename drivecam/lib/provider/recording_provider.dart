@@ -20,6 +20,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:native_device_orientation/native_device_orientation.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import '../export/hls_export_channel.dart';
@@ -44,6 +45,45 @@ class RecordingProvider extends ChangeNotifier {
   HlsRecordingSession? _session;
   HlsRecordingSession? get session => _session;
 
+  // Current device rotation in clockwise degrees from the device's natural
+  // portrait orientation. CameraView updates this whenever the phone rotates
+  // so the recorder can embed the correct MP4 orientation hint without
+  // reopening the camera.
+  int _deviceRotation = 0;
+  int get deviceRotation => _deviceRotation;
+
+  /// Remember the latest device rotation reported by the UI layer.
+  ///
+  /// Parameters:
+  ///   [deviceRotation] — clockwise rotation in degrees (0, 90, 180, 270).
+  ///
+  /// Returns nothing.
+  void setDeviceRotation(int deviceRotation) {
+    _deviceRotation = deviceRotation;
+  }
+
+  /// Convert a native device orientation into the clockwise degrees expected
+  /// by MediaRecorder.setOrientationHint().
+  ///
+  /// Parameters:
+  ///   [orientation] — the current physical orientation of the device.
+  ///
+  /// Returns the matching clockwise rotation in degrees.
+  static int deviceRotationDegreesFor(NativeDeviceOrientation orientation) {
+    switch (orientation) {
+      case NativeDeviceOrientation.portraitUp:
+        return 0;
+      case NativeDeviceOrientation.landscapeLeft:
+        return 90;
+      case NativeDeviceOrientation.portraitDown:
+        return 180;
+      case NativeDeviceOrientation.landscapeRight:
+        return 270;
+      case NativeDeviceOrientation.unknown:
+        return 0;
+    }
+  }
+
   /// Callback invoked after a recording is saved to disk and the DB.
   /// ClipProvider wires this up to process any pending clips that were
   /// queued while the recording was stopping.
@@ -58,7 +98,7 @@ class RecordingProvider extends ChangeNotifier {
   /// Flip recording state: start if currently idle, stop-and-save if
   /// currently recording. Guarded by [_isBusy] so that taps during a
   /// save window are silently ignored rather than producing a race.
-  Future<void> toggleRecording({int deviceRotation = 0}) async {
+  Future<void> toggleRecording({int? deviceRotation}) async {
     if (_isBusy) return;
 
     _isBusy     = true;
@@ -87,13 +127,16 @@ class RecordingProvider extends ChangeNotifier {
   /// Parameters:
   ///   [deviceRotation] — passed to the session so Kotlin can embed the
   ///     correct orientation hint in the MP4 file.
-  Future<void> _startSession({int deviceRotation = 0}) async {
+  Future<void> _startSession({int? deviceRotation}) async {
     final appDir        = await getApplicationDocumentsDirectory();
     final recordingsRoot = p.join(appDir.path, 'recordings');
     await Directory(recordingsRoot).create(recursive: true);
 
+    // Prefer the freshest rotation from the UI, but keep the last known value
+    // if this caller does not supply one.
+    _deviceRotation = deviceRotation ?? _deviceRotation;
     _session = await HlsRecordingSession.create(recordingsRootDir: recordingsRoot);
-    await _session!.start(deviceRotation: deviceRotation);
+    await _session!.start(deviceRotation: _deviceRotation);
     _recordingStartTime = DateTime.now();
   }
 
@@ -198,7 +241,10 @@ class RecordingProvider extends ChangeNotifier {
   ///
   /// Parameters:
   ///   [deviceRotation] — current device rotation for the MP4 orientation hint.
-  Future<void> resumeSessionWith({int deviceRotation = 0}) async {
-    await _session?.resumeWith(deviceRotation: deviceRotation);
+  Future<void> resumeSessionWith({int? deviceRotation}) async {
+    // Reuse the same live rotation tracking as the first segment so resumed
+    // recordings keep the correct MP4 orientation hint after a rotation.
+    _deviceRotation = deviceRotation ?? _deviceRotation;
+    await _session?.resumeWith(deviceRotation: _deviceRotation);
   }
 }

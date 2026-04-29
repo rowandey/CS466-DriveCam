@@ -53,6 +53,7 @@ import 'package:drivecam/provider/settings_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
+import 'package:native_device_orientation/native_device_orientation.dart';
 
 class CameraView extends StatefulWidget {
   const CameraView({super.key});
@@ -69,10 +70,6 @@ class _CameraViewState extends State<CameraView> {
   // for a back camera with 90° sensor orientation).
   int _previewWidth  = 1280;
   int _previewHeight = 720;
-
-  // Sensor orientation in degrees. Used to compute the rotation correction for
-  // the preview Texture widget. Typically 90 for back cameras on Android phones.
-  int _sensorOrientation = 90;
 
   // Tracks which settings were used to initialise the camera, so we can detect
   // changes that require a reinitialisation.
@@ -184,11 +181,12 @@ class _CameraViewState extends State<CameraView> {
     );
 
     if (!mounted) return;
+    // The Android sensorOrientation value is hardware-fixed, so the preview
+    // keeps only the dimensions here and uses live device rotation separately.
     setState(() {
       _textureId         = result['textureId'] as int;
       _previewWidth      = result['width']  as int;
       _previewHeight     = result['height'] as int;
-      _sensorOrientation = result['sensorOrientation'] as int;
       _currentQuality        = quality;
       _currentFramerate      = framerate;
       _currentAudioEnabled   = audioEnabled;
@@ -247,9 +245,6 @@ class _CameraViewState extends State<CameraView> {
   Future<void> _reinitCameraWhileRecording(bool audioEnabled) async {
     final recordingProvider = context.read<RecordingProvider>();
     if (recordingProvider.isBusy) return;
-    // Capture orientation before any await so context is not used across an async gap.
-    final isLandscape =
-        MediaQuery.of(context).orientation == Orientation.landscape;
 
     recordingProvider.lockBusy();
     try {
@@ -262,8 +257,10 @@ class _CameraViewState extends State<CameraView> {
       _currentAudioEnabled = audioEnabled;
 
       // Restart recording on the next segment with the updated setting.
+      // The provider keeps the latest live device rotation so the MP4 hint is
+      // still correct after the phone turns between the pause and resume.
       await recordingProvider.resumeSessionWith(
-        deviceRotation: isLandscape ? 90 : 0,
+        deviceRotation: recordingProvider.deviceRotation,
       );
     } catch (e) {
       debugPrint('Camera reinit while recording failed: $e');
@@ -332,17 +329,31 @@ class _CameraViewState extends State<CameraView> {
 
   @override
   Widget build(BuildContext context) {
-    // Show a clear error when the user has denied the camera permission.
-    if (_permissionDenied) return _buildPermissionDenied(context);
+    // NativeDeviceOrientationReader keeps the latest phone rotation available
+    // without reopening the camera; we only use it to update the recording
+    // provider's orientation hint.
+    return NativeDeviceOrientationReader(
+      builder: (orientationContext) {
+        final orientation = NativeDeviceOrientationReader.orientation(
+          orientationContext,
+        );
+        context.read<RecordingProvider>().setDeviceRotation(
+              RecordingProvider.deviceRotationDegreesFor(orientation),
+            );
 
-    return FutureBuilder<void>(
-      future: _initFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done ||
-            _textureId == null) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        return _buildPreview(context);
+        // Show a clear error when the user has denied the camera permission.
+        if (_permissionDenied) return _buildPermissionDenied(context);
+
+        return FutureBuilder<void>(
+          future: _initFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState != ConnectionState.done ||
+                _textureId == null) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            return _buildPreview(context);
+          },
+        );
       },
     );
   }
@@ -410,8 +421,6 @@ class _CameraViewState extends State<CameraView> {
         //
         // In landscape the sensor's long axis aligns with the display, so no
         // correction is needed.
-        final quarterTurns = isPortrait ? 0 : _sensorOrientation ~/ 90;
-        print("orientation: " + MediaQuery.orientationOf(context).toString());
 
         final sensorW = _previewWidth.toDouble();
         final sensorH = _previewHeight.toDouble();
@@ -424,13 +433,41 @@ class _CameraViewState extends State<CameraView> {
 
         // RotatedBox applies the correction prior to layout so the parent sees
         // the corrected size. quarterTurns=0 in landscape is a no-op.
-        final previewWidget = RotatedBox(
-          quarterTurns: quarterTurns,
-          child: SizedBox(
-            width:  sensorW,
-            height: sensorH,
-            child:  Texture(textureId: _textureId!),
-          ),
+        final previewWidget = NativeDeviceOrientedWidget(
+          portrait: (context) {
+            return SizedBox(
+              width:  sensorW,
+              height: sensorH,
+              child:  Texture(textureId: _textureId!),
+            );
+          },
+          landscapeLeft: (context) {
+            return RotatedBox(
+              quarterTurns: -1,
+              child: SizedBox(
+                width:  sensorW,
+                height: sensorH,
+                child:  Texture(textureId: _textureId!),
+              ),
+            );
+          },
+          landscapeRight: (context) {
+            return RotatedBox(
+              quarterTurns: 1,
+              child: SizedBox(
+                width:  sensorW,
+                height: sensorH,
+                child:  Texture(textureId: _textureId!),
+              ),
+            );
+          },
+          fallback: (context) {
+            return SizedBox(
+              width:  sensorW,
+              height: sensorH,
+              child:  Texture(textureId: _textureId!),
+            );
+          },
         );
 
         return Stack(
@@ -455,12 +492,13 @@ class _CameraViewState extends State<CameraView> {
             Positioned(
               top:   8,
               right: 8,
-              child: IconButton(
-                icon:      const Icon(Icons.menu),
-                color:     Colors.white,
-                iconSize:  28,
-                onPressed: () => Scaffold.of(context).openEndDrawer(),
-              ),
+              child: SafeArea(child: IconButton(
+                  icon:      const Icon(Icons.menu),
+                  color:     Colors.white,
+                  iconSize:  28,
+                  onPressed: () => Scaffold.of(context).openEndDrawer(),
+                ),
+              )
             ),
           ],
         );

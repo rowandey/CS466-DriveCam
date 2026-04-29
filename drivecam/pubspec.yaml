@@ -21,6 +21,7 @@ dependencies:
   intl: ^0.20.2
   gal: ^2.3.0
   flutter_launcher_icons: ^0.14.0
+  native_device_orientation: ^2.1.0
 
 dev_dependencies:
   flutter_test:
