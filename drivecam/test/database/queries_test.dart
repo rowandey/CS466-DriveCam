@@ -36,7 +36,15 @@ void main() {
     expect(RegExp(r'\?').allMatches(insertClip).length, 9);
     expect(selectAllClips, contains('ORDER BY date_time DESC'));
     expect(updateClipFlag, contains('SET is_flagged = ?'));
+
+    // Verify that deleteClip targets exactly one row via a WHERE clause on id.
+    // A plain 'DELETE FROM clips' without the WHERE would wipe the entire table,
+    // so we assert both the presence of the scoping clause AND that there is
+    // exactly one placeholder so the caller must supply an id argument.
     expect(deleteClip, contains('DELETE FROM clips'));
+    expect(deleteClip, contains('WHERE id = ?'));
+    expect(RegExp(r'\?').allMatches(deleteClip).length, 1);
+
     expect(deleteOldestClip, contains('ORDER BY date_time ASC'));
     expect(deleteOldestClip, contains('LIMIT 1'));
     expect(RegExp(r'\?').allMatches(deleteOldestClip).length, 0);
