@@ -1,3 +1,10 @@
+// Model class representing a single video clip stored in the database.
+//
+// Each instance corresponds to one row in the 'clips' table. Methods named
+// *DB interact with [DatabaseHelper] to persist changes, so they must be
+// called from an async context. Static helpers (e.g. [loadAllClips]) operate
+// on all rows at once.
+
 import '../database/database_helper.dart';
 import '../database/queries.dart';
 
@@ -83,8 +90,17 @@ class Clip {
     await db.rawDelete(deleteClip, [id]);
   }
 
+  /// Deletes the oldest clip from the database based on [date_time] ascending.
+  ///
+  /// Uses the [deleteOldestClip] SQL constant, which selects the target row
+  /// internally via a sub-query — no placeholder is needed and no id is passed.
+  /// Call this from storage-management code when you decide the oldest clip
+  /// should be removed, such as during cleanup for storage limits.
   Future<void> deleteOldestClipDB() async {
     final db = await DatabaseHelper().database;
-    await db.rawDelete(deleteOldestClip, [id]);
+    // BUG FIX: deleteOldestClip has no '?' placeholders, so no argument list
+    // should be passed. Passing [id] here caused a runtime error because
+    // sqflite tried to bind an argument to a non-existent placeholder.
+    await db.rawDelete(deleteOldestClip);
   }
 }
