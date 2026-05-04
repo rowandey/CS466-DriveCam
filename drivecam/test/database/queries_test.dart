@@ -22,7 +22,15 @@ void main() {
     expect(selectRecording, contains('LIMIT 1'));
     expect(updateRecording, contains('WHERE id = ?'));
     expect(RegExp(r'\?').allMatches(updateRecording).length, 5);
+
+    // Verify that deleteRecording targets exactly one row via a WHERE clause on
+    // id. Without this check, an accidental removal of the clause would turn
+    // the delete into an unscoped 'DELETE FROM recording' that wipes all rows
+    // rather than the single targeted row. Exactly one placeholder ensures the
+    // caller must supply an id argument.
     expect(deleteRecording, contains('DELETE FROM recording'));
+    expect(deleteRecording, contains('WHERE id = ?'));
+    expect(RegExp(r'\?').allMatches(deleteRecording).length, 1);
   });
 
   // The clip queries should keep the ordering and flag behavior stable.

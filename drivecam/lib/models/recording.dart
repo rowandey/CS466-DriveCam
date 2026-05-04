@@ -1,3 +1,9 @@
+// Model class representing the single active recording stored in the database.
+//
+// Only one row ever exists in the 'recording' table at a time. The app
+// upserts it on launch and reuses it across sessions. Methods named *DB
+// interact with [DatabaseHelper]; they must be called from an async context.
+
 import '../database/database_helper.dart';
 import '../database/queries.dart';
 
@@ -16,6 +22,7 @@ class Recording {
     this.thumbnailLocation,
   });
 
+  /// Creates a [Recording] from a database row map produced by [rawQuery].
   factory Recording.fromMap(Map<String, dynamic> map) {
     return Recording(
       id: map['id'] as String,
@@ -26,6 +33,7 @@ class Recording {
     );
   }
 
+  /// Converts this instance to a column-name → value map for raw SQL use.
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -36,7 +44,10 @@ class Recording {
     };
   }
 
-  // inserts the recording to it's table
+  /// Inserts (or replaces) this recording row in the database.
+  ///
+  /// Uses INSERT OR REPLACE so calling this a second time with the same [id]
+  /// updates the existing row rather than throwing a constraint violation.
   Future<void> insertRecordingDB() async {
     final db = await DatabaseHelper().database;
     await db.rawInsert(insertRecording, [
@@ -48,7 +59,7 @@ class Recording {
     ]);
   }
 
-  // returns the recording row
+  /// Returns the single recording row, or `null` if the table is empty.
   static Future<Recording?> openRecordingDB() async {
     final db = await DatabaseHelper().database;
     final rows = await db.rawQuery(selectRecording);
@@ -56,7 +67,10 @@ class Recording {
     return Recording.fromMap(rows.first);
   }
 
-  // updates the recording in the db
+  /// Updates all mutable fields for this recording in the database.
+  ///
+  /// Binds arguments in the order expected by [updateRecording]:
+  /// `[recording_location, recording_length, recording_size, thumbnail_location, id]`.
   Future<void> updateRecordingDB() async {
     final db = await DatabaseHelper().database;
     await db.rawUpdate(updateRecording, [
@@ -68,7 +82,7 @@ class Recording {
     ]);
   }
 
-  // deletes the recording in the db
+  /// Deletes the recording row identified by [id] from the database.
   Future<void> deleteRecordingDB() async {
     final db = await DatabaseHelper().database;
     await db.rawDelete(deleteRecording, [id]);

@@ -11,11 +11,17 @@
 //
 // Model-layer tests use [DatabaseHelper.setDatabaseForTesting] to inject the
 // in-memory database into the singleton so that methods like
-// [Clip.deleteOldestClipDB] exercise the same code path the app runs.
+// [Clip.deleteOldestClipDB] and [Recording.insertRecordingDB] exercise the
+// same code path the app runs.
+//
+// A dedicated test also exercises [DatabaseHelper._initDatabase()] + [_onCreate]
+// wiring directly by setting [DatabaseHelper.testDatabasePath] to
+// [inMemoryDatabasePath] so no on-disk file is created.
 
 import 'package:drivecam/database/database_helper.dart';
 import 'package:drivecam/database/queries.dart';
 import 'package:drivecam/models/clip.dart';
+import 'package:drivecam/models/recording.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -243,6 +249,92 @@ void main() {
     rows = await db.rawQuery(selectAllClips);
     expect(rows, hasLength(1));
     expect(rows.single['id'], 'clip-newer');
+  });
+
+  // This test exercises DatabaseHelper._initDatabase() and the _onCreate
+  // callback directly — not the openTestDatabase() shortcut — so a regression
+  // in the callback wiring (wrong SQL, wrong version, missing table, etc.)
+  // will fail here while the other tests keep using their own schema creation.
+  //
+  // DatabaseHelper.testDatabasePath is set to inMemoryDatabasePath so no
+  // on-disk file is created, making the test fully hermetic.
+  test('DatabaseHelper._initDatabase() wires _onCreate correctly', () async {
+    // Point the helper at an in-memory database so no disk file is created.
+    DatabaseHelper.testDatabasePath = inMemoryDatabasePath;
+    // Reset the cached singleton so the next .database call re-runs _initDatabase().
+    DatabaseHelper.setDatabaseForTesting(null);
+
+    // This is the real production path: DatabaseHelper._initDatabase() is called,
+    // which opens the database and fires _onCreate, which executes
+    // createRecordingTable and createClipsTable.
+    final helperDb = await DatabaseHelper().database;
+
+    // Verify that _onCreate created both tables with the right columns.
+    final recordingCols = await helperDb.rawQuery('PRAGMA table_info(recording)');
+    expect(
+      recordingCols.map((c) => c['name']).toList(),
+      equals(<String>['id', 'recording_location', 'recording_length', 'recording_size', 'thumbnail_location']),
+    );
+    final clipCols = await helperDb.rawQuery('PRAGMA table_info(clips)');
+    expect(
+      clipCols.map((c) => c['name']).toList(),
+      equals(<String>['id', 'date_time', 'date_time_pretty', 'clip_length', 'clip_size', 'trigger_type', 'is_flagged', 'clip_location', 'thumbnail_location']),
+    );
+
+    // Clean up: close the helper's database, reset the path override, and
+    // restore the in-memory DB used by the other tests in this group.
+    await helperDb.close();
+    DatabaseHelper.testDatabasePath = null;
+    DatabaseHelper.setDatabaseForTesting(db);
+  });
+
+  // Exercises the Recording model-layer methods end-to-end through the real
+  // app code path (Recording.*DB() → DatabaseHelper().database → rawQuery/…).
+  //
+  // A parameter-order or binding-count bug in Recording model methods would
+  // cause a DatabaseException at this layer but pass any SQL-constant-only test.
+  test('Recording model-layer methods work end-to-end', () async {
+    // insertRecordingDB — writes a new row via the INSERT OR REPLACE statement.
+    final recording = Recording(
+      id: 'rec-model-1',
+      recordingLocation: '/videos/model-rec.mp4',
+      recordingLength: 120,
+    );
+    await recording.insertRecordingDB();
+
+    // openRecordingDB — reads the row back and constructs a Recording object.
+    final loaded = await Recording.openRecordingDB();
+    expect(loaded, isNotNull);
+    expect(loaded!.id, 'rec-model-1');
+    expect(loaded.recordingLocation, '/videos/model-rec.mp4');
+    expect(loaded.recordingLength, 120);
+    expect(loaded.recordingSize, isNull);
+    expect(loaded.thumbnailLocation, isNull);
+
+    // updateRecordingDB — updates all four mutable fields in the correct
+    // binding order: [recording_location, recording_length, recording_size,
+    // thumbnail_location, id]. A wrong order would silently store bad data.
+    final updated = Recording(
+      id: 'rec-model-1',
+      recordingLocation: '/videos/model-rec-updated.mp4',
+      recordingLength: 240,
+      recordingSize: 50,
+      thumbnailLocation: '/thumbs/model-rec.png',
+    );
+    await updated.updateRecordingDB();
+
+    final reloaded = await Recording.openRecordingDB();
+    expect(reloaded!.recordingLocation, '/videos/model-rec-updated.mp4');
+    expect(reloaded.recordingLength, 240);
+    expect(reloaded.recordingSize, 50);
+    expect(reloaded.thumbnailLocation, '/thumbs/model-rec.png');
+
+    // deleteRecordingDB — deletes only the targeted row; passing a wrong id
+    // would leave a stale row and the subsequent openRecordingDB would return
+    // a non-null value, catching binding or scoping bugs.
+    await updated.deleteRecordingDB();
+    final afterDelete = await Recording.openRecordingDB();
+    expect(afterDelete, isNull);
   });
 }
 

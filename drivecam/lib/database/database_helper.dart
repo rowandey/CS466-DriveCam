@@ -33,9 +33,19 @@ class DatabaseHelper {
     _database = db;
   }
 
+  /// Overrides the database file path used by [_initDatabase].
+  ///
+  /// **Only for use in unit tests.** Set to [inMemoryDatabasePath] before
+  /// calling [database] with `_database == null` to exercise the full
+  /// `_initDatabase()` → `_onCreate` path without writing to disk.
+  /// Reset to `null` after the test completes.
+  @visibleForTesting
+  static String? testDatabasePath;
+
   Future<Database> _initDatabase() async {
-    final dbPath = await getDatabasesPath();
-    final path = join(dbPath, 'drivecam.db');
+    // Use the test-injected path when set; otherwise fall back to the real
+    // on-disk path so production behaviour is unchanged.
+    final path = testDatabasePath ?? join(await getDatabasesPath(), 'drivecam.db');
 
     return openDatabase(
       path,
