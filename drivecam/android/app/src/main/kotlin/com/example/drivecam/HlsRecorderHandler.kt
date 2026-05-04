@@ -466,32 +466,50 @@ object HlsRecorderHandler {
             ?: return result.error("INVALID_ARG", "nextOutputPath required", null)
         val recorder = mediaRecorder
             ?: return result.error("NOT_RECORDING", "Not currently recording", null)
+        val handler  = cameraHandler
+            ?: return result.error("NOT_INITIALIZED", "Camera thread unavailable", null)
 
+        // Measure elapsed time here, before dispatching, so the clock is read
+        // as close as possible to when the rotation was actually requested.
         val elapsedMs = System.currentTimeMillis() - segmentStartMs
 
-        // The key API call — zero camera interaction, zero preview interruption.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            try {
-                recorder.setNextOutputFile(File(nextPath))
-            } catch (e: Exception) {
-                return result.error("ROTATE_ERROR", "setNextOutputFile failed: ${e.message}", null)
+        // Dispatch to the camera background thread — the same thread that calls
+        // recorder.start() inside startRecording()'s onConfigured callback.
+        // MediaRecorder is NOT thread-safe: calling setNextOutputFile() from
+        // the Android main thread (where MethodChannel calls arrive) while
+        // start()/stop() run on the camera thread produces INVALID_OPERATION
+        // (-38). This mirrors the dispatch pattern used in stopRecording().
+        handler.post {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                try {
+                    // The key API call — zero camera interaction, zero preview interruption.
+                    recorder.setNextOutputFile(File(nextPath))
+                } catch (e: Exception) {
+                    mainHandler.post {
+                        result.error("ROTATE_ERROR", "setNextOutputFile failed: ${e.message}", null)
+                    }
+                    return@post
+                }
+            } else {
+                // This branch is unreachable if minSdkVersion >= 26, but kept as a
+                // safety net so the app fails gracefully on unexpectedly old devices
+                // rather than crashing silently.
+                mainHandler.post {
+                    result.error(
+                        "UNSUPPORTED",
+                        "setNextOutputFile requires API 26+. Update minSdkVersion.",
+                        null,
+                    )
+                }
+                return@post
             }
-        } else {
-            // This branch is unreachable if minSdkVersion >= 26, but kept as a
-            // safety net so the app fails gracefully on unexpectedly old devices
-            // rather than crashing silently.
-            return result.error(
-                "UNSUPPORTED",
-                "setNextOutputFile requires API 26+. Update minSdkVersion.",
-                null,
-            )
-        }
 
-        // Reset the clock for the next segment immediately after the call.
-        // The file switch happens at the next keyframe (≤ 1 frame), so this
-        // wall-clock value is a close estimate of the true segment boundary.
-        segmentStartMs = System.currentTimeMillis()
-        result.success(elapsedMs.toDouble() / 1000.0)
+            // Reset the clock for the next segment on the camera thread so
+            // segmentStartMs is always written by the same thread that reads it
+            // for subsequent rotations or the final stopRecording() call.
+            segmentStartMs = System.currentTimeMillis()
+            mainHandler.post { result.success(elapsedMs.toDouble() / 1000.0) }
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────

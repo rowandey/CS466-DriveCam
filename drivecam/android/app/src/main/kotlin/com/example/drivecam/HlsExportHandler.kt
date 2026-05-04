@@ -133,9 +133,9 @@ object HlsExportHandler {
         val muxer = MediaMuxer(outputPath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
         var muxerStarted = false
 
-        // Track-index mappings from the first segment's extractor to the
-        // muxer's indices. Set from segment 0; the same indices are used
-        // when walking the same track in later segments.
+        // Track-index mappings from the first *valid* segment's extractor to
+        // the muxer's indices. The same indices are reused for every subsequent
+        // segment (all segments share the same codec/format within a session).
         var videoMuxerIdx = -1
         var audioMuxerIdx = -1
 
@@ -149,14 +149,41 @@ object HlsExportHandler {
         val sampleBuffer = ByteBuffer.allocate(4 * 1024 * 1024)
         val bufferInfo = MediaCodec.BufferInfo()
 
+        // Tracks whether the muxer has been configured with the first valid
+        // segment yet. We use this flag instead of segIdx == 0 so that a
+        // corrupt or empty first segment (e.g. from a MediaRecorder.stop()
+        // failure) does not prevent the rest of the recording from playing.
+        var firstValidSegment = true
+
         try {
-            for ((segIdx, path) in segmentPaths.withIndex()) {
+            for (path in segmentPaths) {
+                // Skip segments that don't exist on disk.
                 if (!File(path).exists()) {
-                    throw IllegalStateException("Segment missing: $path")
+                    Log.w(TAG, "Segment missing, skipping: $path")
+                    continue
+                }
+                // A file smaller than 100 bytes cannot contain encoded video
+                // data. This catches the empty files left behind when
+                // MediaRecorder.stop() throws before writing any frames.
+                if (File(path).length() < 100) {
+                    Log.w(TAG, "Segment too small to be valid " +
+                        "(${File(path).length()} bytes), skipping: $path")
+                    continue
                 }
 
                 val extractor = MediaExtractor()
-                extractor.setDataSource(path)
+                // setDataSource can throw if the file is not a parseable
+                // media container (e.g. a truncated MP4 from a failed stop).
+                // Skip it rather than aborting the whole remux.
+                val opened = try {
+                    extractor.setDataSource(path)
+                    true
+                } catch (e: Exception) {
+                    Log.w(TAG, "Segment not parseable, skipping: $path — ${e.message}")
+                    extractor.release()
+                    false
+                }
+                if (!opened) continue
 
                 // Identify the video and audio tracks in THIS segment.
                 var segVideoTrack = -1
@@ -172,14 +199,35 @@ object HlsExportHandler {
 
                 if (segVideoTrack < 0) {
                     extractor.release()
-                    throw IllegalStateException("Segment has no video track: $path")
+                    Log.w(TAG, "Segment has no video track, skipping: $path")
+                    continue
                 }
 
-                // On the first segment only: register tracks on the muxer.
-                // Later segments MUST have the same track shape; we take
-                // this on faith since all segments come from one camera
-                // session.
-                if (segIdx == 0) {
+                // On the first valid segment only: register tracks on the muxer.
+                // Later segments MUST have the same track shape; we take this
+                // on faith since all segments come from one camera session.
+                if (firstValidSegment) {
+                    firstValidSegment = false
+
+                    // MediaMuxer does NOT automatically copy container-level metadata
+                    // such as the rotation/orientation hint. We must read it from the
+                    // source segment and apply it explicitly before start(). Without
+                    // this, every remuxed file defaults to 0° (landscape) regardless
+                    // of how the phone was held during recording.
+                    val retriever = MediaMetadataRetriever()
+                    try {
+                        retriever.setDataSource(path)
+                        val rotStr = retriever.extractMetadata(
+                            MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION,
+                        )
+                        // toIntOrNull() returns null for missing/malformed metadata;
+                        // fall back to 0 (no rotation) so the output is still valid.
+                        val rotation = rotStr?.toIntOrNull() ?: 0
+                        muxer.setOrientationHint(rotation)
+                    } finally {
+                        retriever.release()
+                    }
+
                     videoMuxerIdx = muxer.addTrack(extractor.getTrackFormat(segVideoTrack))
                     if (segAudioTrack >= 0) {
                         audioMuxerIdx = muxer.addTrack(extractor.getTrackFormat(segAudioTrack))
@@ -201,7 +249,7 @@ object HlsExportHandler {
                 videoPtsOffsetUs += segVideoDurUs
 
                 // Copy audio samples if both this segment and the first
-                // segment had audio tracks.
+                // valid segment had audio tracks.
                 if (segAudioTrack >= 0 && audioMuxerIdx >= 0) {
                     val segAudioDurUs = copyTrack(
                         extractor = extractor,
@@ -216,6 +264,13 @@ object HlsExportHandler {
                 }
 
                 extractor.release()
+            }
+
+            // If every segment was skipped (all corrupt/missing), there is
+            // nothing to play back — surface this as an error rather than
+            // silently producing an empty file.
+            if (!muxerStarted) {
+                throw IllegalStateException("No valid segments found in recording")
             }
         } finally {
             if (muxerStarted) {
