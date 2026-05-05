@@ -88,23 +88,13 @@ fixing several bugs discovered during internal testing, and expanding automated 
 
 ## 🐛 Known Bugs
 
-The following issues have been identified and are tracked in the project's GitHub Issues. They
-are not blocking but users may encounter them.
+One bug has been confirmed as of this release.
 
-### High Priority
+| Summary | Details |
+|---------|---------|
+| **Clip can be triggered before recording has fully started** | When the user presses Record, the app's internal `isRecording` flag is set to `true` and the UI updates immediately, but the camera hardware has not yet begun capturing video. If the user taps the preview in this brief window, the clip-save logic sees `isRecording = true` and queues a clip request — but no footage exists yet, so no clip is produced. **Workaround:** Wait for the recording indicator to appear steadily before tapping to save a clip. |
 
-| # | Summary | Details |
-|---|---------|---------|
-| [#48] | **Camera stops working after app is minimized** | After the app is sent to the background, resuming it leaves the camera in a broken state. Pressing Record does nothing (the recording indicator briefly flashes). The rest of the app is unaffected. **Workaround:** Force-quit and relaunch the app. |
-| [#31] | **Recording thumbnail sometimes shows a placeholder** | If a recording is started and stopped very quickly, or if the audio toggle is used, the thumbnail in the Clip Manager may render as a blank placeholder widget instead of an actual video frame. **Workaround:** The video itself is not affected — only the thumbnail preview. |
-
-### Medium Priority
-
-| # | Summary | Details |
-|---|---------|---------|
-| [#12] | **Clip and recording settings are UI-only** | Setting dropdowns for framerate, quality, storage limits, and clip durations are displayed and persisted, but several values (e.g., storage-limit enforcement) are not yet fully wired to all runtime behaviours. |
-
-### Low Priority / Future Work
+### Planned Features (Not Yet Implemented)
 
 The following are planned features that have not yet been implemented. They are listed here for
 transparency so users understand what to expect in a future release.
@@ -165,17 +155,14 @@ transparency so users understand what to expect in a future release.
 
 ---
 
-[#12]: https://github.com/rowandey/SE467-DriveCam/issues/12
 [#13]: https://github.com/rowandey/SE467-DriveCam/issues/13
 [#14]: https://github.com/rowandey/SE467-DriveCam/issues/14
 [#22]: https://github.com/rowandey/SE467-DriveCam/issues/22
-[#31]: https://github.com/rowandey/SE467-DriveCam/issues/31
 [#33]: https://github.com/rowandey/SE467-DriveCam/issues/33
 [#36]: https://github.com/rowandey/SE467-DriveCam/pull/36
 [#40]: https://github.com/rowandey/SE467-DriveCam/pull/40
 [#42]: https://github.com/rowandey/SE467-DriveCam/pull/42
 [#43]: https://github.com/rowandey/SE467-DriveCam/issues/43
 [#44]: https://github.com/rowandey/SE467-DriveCam/issues/44
-[#48]: https://github.com/rowandey/SE467-DriveCam/issues/48
 [#50]: https://github.com/rowandey/SE467-DriveCam/pull/50
 [v0.1.1 GitHub Release page]: https://github.com/rowandey/SE467-DriveCam/releases/tag/v0.1.1
