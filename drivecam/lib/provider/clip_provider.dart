@@ -60,7 +60,9 @@ class ClipProvider extends ChangeNotifier {
       return;
     }
     if (_recordingProvider.controller == null ||
-        !_recordingProvider.controller!.value.isInitialized) return;
+        !_recordingProvider.controller!.value.isInitialized) {
+      return;
+    }
     _recordingProvider.lockBusy();
     try {
       await _saveClipFromLive(clipDurationSeconds, triggerType);
