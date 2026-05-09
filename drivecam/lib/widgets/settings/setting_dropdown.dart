@@ -33,10 +33,10 @@ class SettingDropdown extends StatelessWidget {
             initialSelection: value,
             // Force a solid menu surface for better dark-mode readability.
             menuStyle: MenuStyle(
-              backgroundColor: MaterialStatePropertyAll<Color>(
+              backgroundColor: WidgetStatePropertyAll<Color>(
                 colorScheme.surface,
               ),
-              surfaceTintColor: MaterialStatePropertyAll<Color>(
+              surfaceTintColor: WidgetStatePropertyAll<Color>(
                 colorScheme.surface,
               ),
             ),
