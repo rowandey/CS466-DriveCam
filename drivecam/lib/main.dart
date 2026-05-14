@@ -2,6 +2,7 @@ import 'package:drivecam/database/database_helper.dart';
 import 'package:drivecam/provider/clip_provider.dart';
 import 'package:drivecam/provider/recording_provider.dart';
 import 'package:drivecam/provider/settings_provider.dart';
+import 'package:drivecam/provider/sensor_provider.dart';
 import 'package:drivecam/provider/theme_provider.dart';
 import 'package:drivecam/screens/main_shell.dart';
 import 'package:flutter/material.dart';
@@ -20,6 +21,7 @@ void main() async {
 
   final recordingProvider = RecordingProvider();
   final clipProvider = ClipProvider(recordingProvider);
+  final sensorProvider = SensorProvider(recordingProvider, clipProvider, settingsProvider);
   recordingProvider.onRecordingSaved = clipProvider.processPendingClip;
 
   runApp(
@@ -29,6 +31,7 @@ void main() async {
         ChangeNotifierProvider.value(value: settingsProvider),
         ChangeNotifierProvider.value(value: recordingProvider),
         ChangeNotifierProvider.value(value: clipProvider),
+        ChangeNotifierProvider.value(value: sensorProvider),
       ],
       child: const MainApp(),
     ),
