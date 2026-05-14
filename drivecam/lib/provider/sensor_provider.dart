@@ -27,6 +27,8 @@ class SensorProvider extends ChangeNotifier {
   final RecordingProvider _recordingProvider;
   final ClipProvider _clipProvider;
   final SettingsProvider _settingsProvider;
+  final SensorEventSource _sensorSource;
+  final DateTime Function() _now;
 
   // Tunable parameters (defaults chosen conservatively).
   bool enabled = true; // Master toggle; can be expanded to persist later.
@@ -47,17 +49,27 @@ class SensorProvider extends ChangeNotifier {
 
   /// Create a SensorProvider backed by the given recording and clip providers
   /// and the settings provider (used to obtain pre/post durations).
+  ///
+  /// The optional [sensorSource] and [now] parameters are injected in tests so
+  /// CSV fixtures can be replayed deterministically without touching the real
+  /// hardware sensor APIs.
   SensorProvider(
     this._recordingProvider,
     this._clipProvider,
     this._settingsProvider,
-  ) {
+    {
+    SensorEventSource? sensorSource,
+    DateTime Function()? now,
+  }) : _sensorSource = sensorSource ?? SensorService(),
+        _now = now ?? DateTime.now {
     // React to recording state changes to start/stop sensor subscriptions.
     _recordingProvider.addListener(_onRecordingChanged);
     // If app started while already recording, begin listening immediately.
     if (_recordingProvider.isRecording) _startListening();
   }
 
+  /// Responds to recording state changes by turning the sensor listeners on
+  /// and off with the recording session.
   void _onRecordingChanged() {
     if (!enabled) return;
     if (_recordingProvider.isRecording) {
@@ -67,34 +79,40 @@ class SensorProvider extends ChangeNotifier {
     }
   }
 
+  /// Starts the sensor source and subscribes to the accelerometer and
+  /// gyroscope streams used by the fused impact detector.
   void _startListening() {
-    SensorService().start();
+    _sensorSource.start();
     // Subscribe to the throttled broadcast streams from the service.
-    _accelSub ??= SensorService().userAccelerometerStream.listen((e) {
+    _accelSub ??= _sensorSource.userAccelerometerStream.listen((e) {
       _lastAccelMag = sqrt(e.x * e.x + e.y * e.y + e.z * e.z);
       _evaluate();
     });
-    _gyroSub ??= SensorService().gyroscopeStream.listen((e) {
+    _gyroSub ??= _sensorSource.gyroscopeStream.listen((e) {
       _lastGyroMag = sqrt(e.x * e.x + e.y * e.y + e.z * e.z);
       _evaluate();
     });
   }
 
+  /// Cancels the active sensor subscriptions and clears any in-progress
+  /// trigger state so a fresh recording starts from a clean slate.
   void _stopListening() {
     _accelSub?.cancel();
     _accelSub = null;
     _gyroSub?.cancel();
     _gyroSub = null;
-    SensorService().stop();
+    _sensorSource.stop();
     _candidateStart = null;
     _postTimer?.cancel();
     _postTimer = null;
   }
 
+  /// Recomputes the fused sensor metric and decides whether the current sample
+  /// sequence has crossed the threshold long enough to count as a trigger.
   void _evaluate() {
     // Compute fused metric
     final metric = accelWeight * _lastAccelMag + gyroWeight * _lastGyroMag;
-    final now = DateTime.now();
+    final now = _now();
 
     // If currently in cooldown, ignore
     if (_lastTrigger != null && now.difference(_lastTrigger!).inMilliseconds < cooldownMs) {
@@ -117,6 +135,8 @@ class SensorProvider extends ChangeNotifier {
     }
   }
 
+  /// Converts the current sensor state into a clip request using the same pre
+  /// and post duration settings that the manual recording flow already uses.
   void _onTrigger() {
     // Use settings provider durations (pre + post) to match manual behavior
     final secondsPre = SettingsProvider.clipDurationToSeconds(
@@ -152,7 +172,11 @@ class SensorProvider extends ChangeNotifier {
   /// provider stops its subscriptions immediately.
   void setEnabled(bool value) {
     enabled = value;
-    if (!enabled) _stopListening();
+    if (!enabled) {
+      _stopListening();
+    } else if (_recordingProvider.isRecording) {
+      _startListening();
+    }
     notifyListeners();
   }
 

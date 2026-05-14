@@ -9,9 +9,29 @@ import 'dart:async';
 
 import 'package:sensors_plus/sensors_plus.dart';
 
+/// Contract for objects that expose the sensor streams used by the crash
+/// detection system.
+///
+/// This indirection makes the detection logic easy to test with fake streams
+/// built from CSV fixtures while keeping the production implementation backed
+/// by `sensors_plus`.
+abstract class SensorEventSource {
+  /// Stream of gravity-removed accelerometer readings.
+  Stream<UserAccelerometerEvent> get userAccelerometerStream;
+
+  /// Stream of gyroscope readings.
+  Stream<GyroscopeEvent> get gyroscopeStream;
+
+  /// Starts forwarding platform sensor data into the exposed streams.
+  void start();
+
+  /// Stops forwarding platform sensor data into the exposed streams.
+  void stop();
+}
+
 /// Singleton service that exposes broadcast streams for user accelerometer and
 /// gyroscope events. The streams are throttled to reduce CPU usage by default.
-class SensorService {
+class SensorService implements SensorEventSource {
   SensorService._internal();
   static final SensorService _instance = SensorService._internal();
   factory SensorService() => _instance;
