@@ -70,6 +70,158 @@ void main() {
     });
   });
 
+  // videoBitrateForSettings
+  // These tests verify the bitrate lookup table used for storage estimation.
+  // The exact values matter: bytes = bitrate × seconds ÷ 8 is used by
+  // RecordingProvider to predict how much storage each segment will consume.
+  group('SettingsProvider.videoBitrateForSettings', () {
+    test('480p at 15fps returns 1 Mbps', () {
+      expect(SettingsProvider.videoBitrateForSettings('480p', '15 fps'), 1000000);
+    });
+
+    test('480p at 30fps returns 2 Mbps', () {
+      expect(SettingsProvider.videoBitrateForSettings('480p', '30 fps'), 2000000);
+    });
+
+    test('480p at 60fps returns 3.5 Mbps', () {
+      expect(SettingsProvider.videoBitrateForSettings('480p', '60 fps'), 3500000);
+    });
+
+    test('720p at 15fps returns 3 Mbps', () {
+      expect(SettingsProvider.videoBitrateForSettings('720p', '15 fps'), 3000000);
+    });
+
+    test('720p at 30fps returns 5 Mbps', () {
+      expect(SettingsProvider.videoBitrateForSettings('720p', '30 fps'), 5000000);
+    });
+
+    test('720p at 60fps returns 8 Mbps', () {
+      expect(SettingsProvider.videoBitrateForSettings('720p', '60 fps'), 8000000);
+    });
+
+    test('1080p at 15fps returns 6 Mbps', () {
+      expect(SettingsProvider.videoBitrateForSettings('1080p', '15 fps'), 6000000);
+    });
+
+    test('1080p at 30fps returns 10 Mbps', () {
+      expect(SettingsProvider.videoBitrateForSettings('1080p', '30 fps'), 10000000);
+    });
+
+    test('1080p at 60fps returns 16 Mbps', () {
+      expect(SettingsProvider.videoBitrateForSettings('1080p', '60 fps'), 16000000);
+    });
+
+    test('4K at 15fps returns 20 Mbps', () {
+      expect(SettingsProvider.videoBitrateForSettings('4K', '15 fps'), 20000000);
+    });
+
+    test('4K at 30fps returns 35 Mbps', () {
+      expect(SettingsProvider.videoBitrateForSettings('4K', '30 fps'), 35000000);
+    });
+
+    test('4K at 60fps returns 50 Mbps', () {
+      expect(SettingsProvider.videoBitrateForSettings('4K', '60 fps'), 50000000);
+    });
+
+    test('unknown quality falls back to 5 Mbps', () {
+      expect(SettingsProvider.videoBitrateForSettings('unknown', '30 fps'), 5000000);
+    });
+
+    // Sanity-check the storage math inline: bytes = bitrate × seconds ÷ 8.
+    // 1080p/30fps = 10 Mbps → 1 hour = 3600s → 10,000,000 × 3600 ÷ 8 = 4.5 GB.
+    test('1080p/30fps × 1 hour ÷ 8 equals 4.5 GB', () {
+      final bitrate = SettingsProvider.videoBitrateForSettings('1080p', '30 fps');
+      final bytes = bitrate * 3600 ~/ 8;
+      expect(bytes, 4500000000);
+    });
+  });
+
+  // footageLimitToSeconds
+  // These values are read by RecordingProvider._evictOldestIfNeeded to enforce
+  // the rolling-buffer time limit. Every option must map to the correct seconds
+  // or eviction will fire at the wrong time.
+  group('SettingsProvider.footageLimitToSeconds', () {
+    test('maps "30min" to 1800 seconds', () {
+      expect(SettingsProvider.footageLimitToSeconds('30min'), 1800);
+    });
+
+    test('maps "1h" to 3600 seconds', () {
+      expect(SettingsProvider.footageLimitToSeconds('1h'), 3600);
+    });
+
+    test('maps "1.5h" to 5400 seconds', () {
+      expect(SettingsProvider.footageLimitToSeconds('1.5h'), 5400);
+    });
+
+    test('maps "2h" to 7200 seconds', () {
+      expect(SettingsProvider.footageLimitToSeconds('2h'), 7200);
+    });
+
+    test('maps "3h" to 10800 seconds', () {
+      expect(SettingsProvider.footageLimitToSeconds('3h'), 10800);
+    });
+
+    test('maps "4h" to 14400 seconds', () {
+      expect(SettingsProvider.footageLimitToSeconds('4h'), 14400);
+    });
+
+    test('maps "5h" to 18000 seconds', () {
+      expect(SettingsProvider.footageLimitToSeconds('5h'), 18000);
+    });
+
+    test('maps "6h" to 21600 seconds', () {
+      expect(SettingsProvider.footageLimitToSeconds('6h'), 21600);
+    });
+
+    test('unknown value falls back to 7200 seconds (2h)', () {
+      expect(SettingsProvider.footageLimitToSeconds('unknown'), 7200);
+    });
+  });
+
+  // storageLimitToBytes
+  // Uses binary gigabytes (1 GB = 1024^3 bytes) to match how platforms report
+  // storage. These values feed RecordingProvider._evictOldestIfNeeded alongside
+  // footageLimitToSeconds — whichever limit is hit first drives eviction.
+  group('SettingsProvider.storageLimitToBytes', () {
+    const gb = 1024 * 1024 * 1024;
+
+    test('maps "1GB" to 1 × 1024^3 bytes', () {
+      expect(SettingsProvider.storageLimitToBytes('1GB'), 1 * gb);
+    });
+
+    test('maps "2GB" to 2 × 1024^3 bytes', () {
+      expect(SettingsProvider.storageLimitToBytes('2GB'), 2 * gb);
+    });
+
+    test('maps "4GB" to 4 × 1024^3 bytes', () {
+      expect(SettingsProvider.storageLimitToBytes('4GB'), 4 * gb);
+    });
+
+    test('maps "8GB" to 8 × 1024^3 bytes', () {
+      expect(SettingsProvider.storageLimitToBytes('8GB'), 8 * gb);
+    });
+
+    test('maps "12GB" to 12 × 1024^3 bytes', () {
+      expect(SettingsProvider.storageLimitToBytes('12GB'), 12 * gb);
+    });
+
+    test('maps "16GB" to 16 × 1024^3 bytes', () {
+      expect(SettingsProvider.storageLimitToBytes('16GB'), 16 * gb);
+    });
+
+    test('maps "32GB" to 32 × 1024^3 bytes', () {
+      expect(SettingsProvider.storageLimitToBytes('32GB'), 32 * gb);
+    });
+
+    test('maps "64GB" to 64 × 1024^3 bytes', () {
+      expect(SettingsProvider.storageLimitToBytes('64GB'), 64 * gb);
+    });
+
+    test('unknown value falls back to 4 × 1024^3 bytes (4GB)', () {
+      expect(SettingsProvider.storageLimitToBytes('unknown'), 4 * gb);
+    });
+  });
+
   // clipDurationToSeconds
   group('SettingsProvider.clipDurationToSeconds', () {
     test('maps "0s" to 0', () {

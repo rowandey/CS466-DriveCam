@@ -289,6 +289,24 @@ class RecordingProvider extends ChangeNotifier {
     await onRecordingSaved?.call();
   }
 
+  /// Returns the number of completed segments currently tracked in the buffer.
+  ///
+  /// Only used by unit tests — do not read this from production code.
+  @visibleForTesting
+  int get segmentCount => _segmentInfos.length;
+
+  /// Returns the accumulated duration in seconds across all tracked segments.
+  ///
+  /// Only used by unit tests — do not read this from production code.
+  @visibleForTesting
+  int get totalSegmentDurationSeconds => _totalSegmentDurationSeconds;
+
+  /// Returns the accumulated estimated byte count across all tracked segments.
+  ///
+  /// Only used by unit tests — do not read this from production code.
+  @visibleForTesting
+  int get totalSegmentEstimatedBytes => _totalSegmentEstimatedBytes;
+
   /// Concatenates multiple video segments into a single output file using the
   /// FFmpeg concat demuxer. Segments must be from the same codec/format.
   Future<void> _concatenateSegments(
