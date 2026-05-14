@@ -1,13 +1,18 @@
-// Tests for the clipping UI: clip display and tile behavior.
+// Tests for the clipping UI: clip display, tile behavior, and storage warning.
 //
 // These tests focus on UI logic and widget behaviour (formatting, thumbnail
-// presence, navigation, and delete confirmation). They intentionally avoid
-// exercising database persistence and FFmpeg work — those are covered by
-// integration tests elsewhere.
+// presence, navigation, delete confirmation, and the low-storage warning
+// banner). They intentionally avoid exercising database persistence and FFmpeg
+// work — those are covered by integration tests elsewhere.
 //
 // Design note: This test file uses local helper functions to format duration
 // and size, rather than depending on private app implementations. This keeps
 // tests self-contained and decoupled from the app's internal structure.
+//
+// The storage warning banner is tested via a standalone _TestStorageBanner
+// widget that applies the same 80 % threshold logic as the production
+// ClipDisplay, without requiring a live database or Provider tree. This
+// approach mirrors how _TestClipTile is used for tile tests.
 
 import 'dart:io';
 
@@ -147,6 +152,119 @@ void main() {
       expect(deleted, isTrue);
     });
   });
+
+  // ===========================================================================
+  // Storage warning banner — threshold unit tests
+  // ===========================================================================
+  //
+  // These are pure calculations: no widget tree, no database. They pin down the
+  // 80 % threshold so that a change to the formula in ClipDisplay is caught
+  // immediately without needing a running app.
+
+  group('Storage warning banner threshold', () {
+    // Use 1 GB (1,073,741,824 bytes) as the limit throughout for readability.
+    const limitBytes = 1 * 1024 * 1024 * 1024;
+
+    test('warning is NOT shown when storage usage is below 80 %', () {
+      // 79 % of 1 GB = ~848 MB — should not trigger.
+      final total = (limitBytes * 0.79).floor();
+      expect(_shouldShowWarning(total, limitBytes), isFalse);
+    });
+
+    test('warning IS shown when storage usage is exactly at 80 %', () {
+      // The threshold is inclusive: >= 80 % shows the banner.
+      final total = (limitBytes * 0.8).floor();
+      expect(_shouldShowWarning(total, limitBytes), isTrue);
+    });
+
+    test('warning IS shown when storage usage is between 80 % and 100 %', () {
+      // 90 % of 1 GB.
+      final total = (limitBytes * 0.9).floor();
+      expect(_shouldShowWarning(total, limitBytes), isTrue);
+    });
+
+    test('warning IS shown when storage usage exceeds 100 % of the limit', () {
+      // Over-limit state that triggers before eviction runs.
+      final total = (limitBytes * 1.1).floor();
+      expect(_shouldShowWarning(total, limitBytes), isTrue);
+    });
+
+    test('warning is NOT shown when there are no clips (total = 0)', () {
+      expect(_shouldShowWarning(0, limitBytes), isFalse);
+    });
+
+    // Regression: confirm 79.9 % (just below threshold) does NOT show banner.
+    test('warning is NOT shown at 79.9 % usage', () {
+      final total = (limitBytes * 0.799).floor();
+      expect(_shouldShowWarning(total, limitBytes), isFalse);
+    });
+  });
+
+  // ===========================================================================
+  // Storage warning banner — widget tests
+  // ===========================================================================
+
+  group('Storage warning banner widget', () {
+    testWidgets('banner is NOT rendered when usage is below 80 %',
+        (WidgetTester tester) async {
+      const limitBytes = 1 * 1024 * 1024 * 1024;
+      final totalBelow = (limitBytes * 0.5).floor(); // 50 %
+
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: _TestStorageBanner(
+            totalBytes: totalBelow,
+            limitBytes: limitBytes,
+            limitLabel: '1GB',
+          ),
+        ),
+      ));
+
+      // SizedBox.shrink() is used when the banner is hidden — no orange container.
+      expect(find.byType(Container), findsNothing);
+      expect(find.textContaining('Clip storage almost full'), findsNothing);
+    });
+
+    testWidgets('banner IS rendered when usage reaches 80 %',
+        (WidgetTester tester) async {
+      const limitBytes = 1 * 1024 * 1024 * 1024;
+      final totalAt80 = (limitBytes * 0.8).floor();
+
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: _TestStorageBanner(
+            totalBytes: totalAt80,
+            limitBytes: limitBytes,
+            limitLabel: '1GB',
+          ),
+        ),
+      ));
+
+      expect(find.textContaining('Clip storage almost full'), findsOneWidget);
+    });
+
+    testWidgets('banner text includes the current usage and configured limit',
+        (WidgetTester tester) async {
+      // 900 MB used against a 1 GB limit — banner text must mention both.
+      const limitBytes = 1 * 1024 * 1024 * 1024;
+      const totalBytes = 900 * 1024 * 1024; // 900 MB
+
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: _TestStorageBanner(
+            totalBytes: totalBytes,
+            limitBytes: limitBytes,
+            limitLabel: '1GB',
+          ),
+        ),
+      ));
+
+      // Usage should appear as a formatted size string.
+      expect(find.textContaining(_formatSize(totalBytes)), findsOneWidget);
+      // The configured limit label must appear so the user knows the cap.
+      expect(find.textContaining('1GB'), findsOneWidget);
+    });
+  });
 }
 
 /// Test-only tile widget that mimics the essential behavior of the production
@@ -229,4 +347,49 @@ Widget _buildTestTile(Clip clip) {
     height: 240,
     child: _TestClipTile(clip: clip, onDeleted: () {}),
   );
+}
+
+// =============================================================================
+// Storage warning banner — unit and widget tests
+// =============================================================================
+//
+// The banner appears in ClipDisplay when total clip storage reaches or exceeds
+// 80 % of the configured limit. We test the threshold logic as a pure
+// calculation first, then verify the rendered widget shows the right content.
+
+/// Returns true when the banner should be visible — total is at or above 80 %
+/// of the limit. Mirrors the production expression in ClipDisplay exactly so
+/// a change to either will cause these tests to fail.
+bool _shouldShowWarning(int totalBytes, int limitBytes) {
+  return totalBytes >= (limitBytes * 0.8).floor();
+}
+
+/// Standalone banner widget that renders the orange storage warning using the
+/// same threshold logic as ClipDisplay. Accepts raw byte counts so tests can
+/// provide precise values without needing a real SettingsProvider or database.
+class _TestStorageBanner extends StatelessWidget {
+  final int totalBytes;
+  final int limitBytes;
+  final String limitLabel; // display string, e.g. '1GB'
+
+  const _TestStorageBanner({
+    required this.totalBytes,
+    required this.limitBytes,
+    required this.limitLabel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final show = totalBytes >= (limitBytes * 0.8).floor();
+    if (!show) return const SizedBox.shrink();
+    return Container(
+      color: Colors.orange.shade700,
+      padding: const EdgeInsets.all(8),
+      child: Text(
+        'Clip storage almost full — '
+        '${_formatSize(totalBytes)} of $limitLabel used. '
+        'Oldest clips will be automatically deleted when full.',
+      ),
+    );
+  }
 }

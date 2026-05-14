@@ -18,8 +18,12 @@ void main() async {
     DatabaseHelper().database, // init the db
   ]);
 
-  final recordingProvider = RecordingProvider();
-  final clipProvider = ClipProvider(recordingProvider);
+  // RecordingProvider needs SettingsProvider to read footage time and storage
+  // limits during rolling-buffer eviction without going through the widget tree.
+  final recordingProvider = RecordingProvider(settingsProvider);
+  // SettingsProvider is passed so ClipProvider can read clipStorageLimit
+  // during post-save eviction without going through the widget tree.
+  final clipProvider = ClipProvider(recordingProvider, settingsProvider);
   recordingProvider.onRecordingSaved = clipProvider.processPendingClip;
 
   runApp(

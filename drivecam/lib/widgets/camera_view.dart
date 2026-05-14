@@ -25,6 +25,9 @@ class _CameraViewState extends State<CameraView> {
   bool? _currentAudioEnabled;
   Orientation? _currentOrientation;
   Timer? _clipTimer;
+  // Cached provider reference so dispose() can null out onFlushRequested
+  // without relying on context (which may be invalid during disposal).
+  RecordingProvider? _recordingProvider;
 
   /// Initializes (or reinitializes) the [CameraController] with the given settings.
   Future<void> _initCamera(
@@ -33,20 +36,62 @@ class _CameraViewState extends State<CameraView> {
     bool audioEnabled,
   ) async {
     _camera ??= (await availableCameras()).first;
-    // enableAudio controls whether the microphone is captured.
+    // videoBitrate is derived from quality + framerate so the encoder uses a
+    // known, fixed rate rather than a platform-chosen default. A fixed bitrate
+    // is required for accurate storage-consumption estimates elsewhere in the
+    // app (bytes = bitrate × seconds ÷ 8). audioBitrate is intentionally left
+    // at the platform default since audio storage is negligible by comparison.
+    final bitrate = SettingsProvider.videoBitrateForSettings(quality, framerate);
     final controller = CameraController(
       _camera!,
       SettingsProvider.qualityToPreset(quality),
       fps: SettingsProvider.framerateToFps(framerate),
       enableAudio: audioEnabled,
+      videoBitrate: bitrate,
     );
     await controller.initialize();
     if (!mounted) return;
-    context.read<RecordingProvider>().setCameraController(controller);
+    // Cache the provider reference so dispose() can clean up onFlushRequested
+    // without needing a valid BuildContext.
+    _recordingProvider = context.read<RecordingProvider>();
+    _recordingProvider!.setCameraController(controller);
+    // Keep bitrate in sync with the controller so segment size estimation in
+    // addSegment always reflects the current encoding rate.
+    _recordingProvider!.setVideoBitrate(bitrate);
+    // Point the flush timer callback at this widget's _doPeriodicFlush so
+    // RecordingProvider can trigger stop/restart without holding a controller ref.
+    _recordingProvider!.onFlushRequested = _doPeriodicFlush;
     _controller = controller;
     _currentQuality = quality;
     _currentFramerate = framerate;
     _currentAudioEnabled = audioEnabled;
+  }
+
+  /// Called by RecordingProvider's 5-minute flush timer to flush the current
+  /// camera segment to disk, register it with the rolling buffer, and restart
+  /// recording — giving _evictOldestIfNeeded a chance to drop old footage.
+  Future<void> _doPeriodicFlush() async {
+    if (!mounted) return;
+    final recordingProvider = context.read<RecordingProvider>();
+    if (!recordingProvider.isRecording || recordingProvider.isBusy) return;
+
+    recordingProvider.lockBusy();
+    try {
+      // Capture segment start before stopping so the duration is accurate even
+      // if stopVideoRecording takes a moment to complete.
+      final segmentStart = recordingProvider.segmentStartTime ?? DateTime.now();
+      final xFile = await _controller!.stopVideoRecording();
+      final durationSeconds = DateTime.now().difference(segmentStart).inSeconds;
+      // addSegment accounts for duration + estimated size and triggers eviction
+      // of oldest segments if either the time or storage limit is exceeded.
+      recordingProvider.addSegment(xFile.path, durationSeconds);
+      await _controller!.startVideoRecording();
+      recordingProvider.setSegmentStartTime(DateTime.now());
+    } catch (e) {
+      debugPrint('Periodic flush failed: $e');
+    } finally {
+      recordingProvider.unlockBusy();
+    }
   }
 
   Future<void> _triggerClipSave() async {
@@ -102,10 +147,14 @@ class _CameraViewState extends State<CameraView> {
 
     recordingProvider.lockBusy();
     try {
+      // Capture segment start before stopping so duration is accurate.
+      final segmentStart = recordingProvider.segmentStartTime ?? DateTime.now();
       // Flush the current video segment to disk so no footage is lost.
       final xFile = await oldController.stopVideoRecording();
-      // Register the segment so it gets concatenated when recording ends.
-      recordingProvider.addSegment(xFile.path);
+      final durationSeconds = DateTime.now().difference(segmentStart).inSeconds;
+      // Pass duration so rolling-buffer eviction can account for this segment's
+      // time and estimated storage correctly.
+      recordingProvider.addSegment(xFile.path, durationSeconds);
 
       // Dispose the old controller before creating the new one.
       oldController.dispose();
@@ -179,6 +228,9 @@ class _CameraViewState extends State<CameraView> {
   void dispose() {
     _clipTimer?.cancel();
     _controller?.dispose();
+    // Clear the flush callback so the timer in RecordingProvider doesn't call
+    // into this widget after it has been removed from the tree.
+    _recordingProvider?.onFlushRequested = null;
     super.dispose();
   }
 

@@ -31,6 +31,60 @@ class SettingsProvider extends ChangeNotifier {
     }
   }
 
+  static int videoBitrateForSettings(String quality, String framerate) {
+    final fps = framerateToFps(framerate);
+    switch (quality) {
+      case '480p':
+        if (fps <= 15) return 1000000;   // 1 Mbps
+        if (fps <= 30) return 2000000;   // 2 Mbps
+        return 3500000;                  // 3.5 Mbps @ 60fps
+      case '720p':
+        if (fps <= 15) return 3000000;   // 3 Mbps
+        if (fps <= 30) return 5000000;   // 5 Mbps
+        return 8000000;                  // 8 Mbps @ 60fps
+      case '1080p':
+        if (fps <= 15) return 6000000;   // 6 Mbps
+        if (fps <= 30) return 10000000;  // 10 Mbps
+        return 16000000;                 // 16 Mbps @ 60fps
+      case '4K':
+        if (fps <= 15) return 20000000;  // 20 Mbps
+        if (fps <= 30) return 35000000;  // 35 Mbps
+        return 50000000;                 // 50 Mbps @ 60fps
+      default:
+        return 5000000; // fallback: 720p/30fps equivalent
+    }
+  }
+
+  static int footageLimitToSeconds(String value) {
+    switch (value) {
+      case '30min': return 1800;
+      case '1h':    return 3600;
+      case '1.5h':  return 5400;
+      case '2h':    return 7200;
+      case '3h':    return 10800;
+      case '4h':    return 14400;
+      case '5h':    return 18000;
+      case '6h':    return 21600;
+      default:      return 7200;
+    }
+  }
+
+  static int storageLimitToBytes(String value) {
+    // 1 GB = 1024^3 bytes (binary gigabytes, matching platform storage reporting)
+    const gb = 1024 * 1024 * 1024;
+    switch (value) {
+      case '1GB':  return 1 * gb;
+      case '2GB':  return 2 * gb;
+      case '4GB':  return 4 * gb;
+      case '8GB':  return 8 * gb;
+      case '12GB': return 12 * gb;
+      case '16GB': return 16 * gb;
+      case '32GB': return 32 * gb;
+      case '64GB': return 64 * gb;
+      default:     return 4 * gb;
+    }
+  }
+
   static int clipDurationToSeconds(String value) {
     switch (value) {
       case '0s': return 0;
@@ -41,6 +95,23 @@ class SettingsProvider extends ChangeNotifier {
       case '3m':  return 180;
       case '5m':  return 300;
       default:    return 120;
+    }
+  }
+
+  /// Converts a [clipStorageLimitOptions] string to bytes.
+  ///
+  /// Mirrors [storageLimitToBytes] but covers the clip-specific option set
+  /// (1 GB – 8 GB). Uses binary gigabytes (1 GB = 1024^3 bytes) to match how
+  /// platform storage is reported.
+  static int clipStorageLimitToBytes(String value) {
+    const gb = 1024 * 1024 * 1024;
+    switch (value) {
+      case '1GB': return 1 * gb;
+      case '2GB': return 2 * gb;
+      case '4GB': return 4 * gb;
+      case '6GB': return 6 * gb;
+      case '8GB': return 8 * gb;
+      default:    return 2 * gb;
     }
   }
 
