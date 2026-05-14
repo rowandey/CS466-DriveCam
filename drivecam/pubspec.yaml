@@ -10,6 +10,10 @@ dependencies:
   camera: ^0.12.0
   flutter:
     sdk: flutter
+  # Provides access to device sensors (accelerometer, gyroscope, etc.).
+  # sensors_plus is used by the sensor monitoring system added to detect
+  # crashes/impacts and trigger automatic clip creation.
+  sensors_plus: ^3.0.0
   path: ^1.9.1
   path_provider: ^2.1.5
   provider: ^6.1.5+1
