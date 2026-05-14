@@ -31,6 +31,39 @@ class SettingsProvider extends ChangeNotifier {
     }
   }
 
+  /// Maps a quality + framerate pair to a target video bitrate in bits per second.
+  /// Values are calibrated for dashcam H.264 encoding: high enough for readable
+  /// license plates and road detail, low enough to keep storage predictable.
+  /// Using fixed bitrates (rather than letting the encoder decide) is what makes
+  /// accurate storage-consumption estimates possible — if the encoder picks its
+  /// own bitrate you can't know in advance how large a file will be.
+  ///
+  /// Rough storage math: bitrate (bps) × seconds ÷ 8 = bytes.
+  /// Example: 10 Mbps × 3600 s ÷ 8 = 4.5 GB per hour at 1080p/30fps.
+  static int videoBitrateForSettings(String quality, String framerate) {
+    final fps = framerateToFps(framerate);
+    switch (quality) {
+      case '480p':
+        if (fps <= 15) return 1000000;   // 1 Mbps
+        if (fps <= 30) return 2000000;   // 2 Mbps
+        return 3500000;                  // 3.5 Mbps @ 60fps
+      case '720p':
+        if (fps <= 15) return 3000000;   // 3 Mbps
+        if (fps <= 30) return 5000000;   // 5 Mbps
+        return 8000000;                  // 8 Mbps @ 60fps
+      case '1080p':
+        if (fps <= 15) return 6000000;   // 6 Mbps
+        if (fps <= 30) return 10000000;  // 10 Mbps
+        return 16000000;                 // 16 Mbps @ 60fps
+      case '4K':
+        if (fps <= 15) return 20000000;  // 20 Mbps
+        if (fps <= 30) return 35000000;  // 35 Mbps
+        return 50000000;                 // 50 Mbps @ 60fps
+      default:
+        return 5000000; // fallback: 720p/30fps equivalent
+    }
+  }
+
   static int clipDurationToSeconds(String value) {
     switch (value) {
       case '0s': return 0;

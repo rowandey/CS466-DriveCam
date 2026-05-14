@@ -33,12 +33,18 @@ class _CameraViewState extends State<CameraView> {
     bool audioEnabled,
   ) async {
     _camera ??= (await availableCameras()).first;
-    // enableAudio controls whether the microphone is captured.
+    // videoBitrate is derived from quality + framerate so the encoder uses a
+    // known, fixed rate rather than a platform-chosen default. A fixed bitrate
+    // is required for accurate storage-consumption estimates elsewhere in the
+    // app (bytes = bitrate × seconds ÷ 8). audioBitrate is intentionally left
+    // at the platform default since audio storage is negligible by comparison.
+    final bitrate = SettingsProvider.videoBitrateForSettings(quality, framerate);
     final controller = CameraController(
       _camera!,
       SettingsProvider.qualityToPreset(quality),
       fps: SettingsProvider.framerateToFps(framerate),
       enableAudio: audioEnabled,
+      videoBitrate: bitrate,
     );
     await controller.initialize();
     if (!mounted) return;
