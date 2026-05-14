@@ -64,6 +64,42 @@ class SettingsProvider extends ChangeNotifier {
     }
   }
 
+  /// Converts a footage time-limit string to seconds.
+  /// Used by RecordingProvider to compare total accumulated segment duration
+  /// against the user's chosen limit and evict the oldest segment when exceeded.
+  static int footageLimitToSeconds(String value) {
+    switch (value) {
+      case '30min': return 1800;
+      case '1h':    return 3600;
+      case '1.5h':  return 5400;
+      case '2h':    return 7200;
+      case '3h':    return 10800;
+      case '4h':    return 14400;
+      case '5h':    return 18000;
+      case '6h':    return 21600;
+      default:      return 7200;
+    }
+  }
+
+  /// Converts a footage storage-limit string to bytes.
+  /// Used alongside footageLimitToSeconds — whichever limit (time or storage)
+  /// is hit first determines when the oldest segment is dropped.
+  static int storageLimitToBytes(String value) {
+    // 1 GB = 1024^3 bytes (binary gigabytes, matching platform storage reporting)
+    const gb = 1024 * 1024 * 1024;
+    switch (value) {
+      case '1GB':  return 1 * gb;
+      case '2GB':  return 2 * gb;
+      case '4GB':  return 4 * gb;
+      case '8GB':  return 8 * gb;
+      case '12GB': return 12 * gb;
+      case '16GB': return 16 * gb;
+      case '32GB': return 32 * gb;
+      case '64GB': return 64 * gb;
+      default:     return 4 * gb;
+    }
+  }
+
   static int clipDurationToSeconds(String value) {
     switch (value) {
       case '0s': return 0;

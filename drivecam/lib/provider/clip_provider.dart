@@ -148,8 +148,10 @@ class ClipProvider extends ChangeNotifier {
     );
 
     // Keep xFile around — it is added to segments so it can be concatenated
-    // into the full session recording when recording stops.
-    _recordingProvider.addSegment(xFile.path);
+    // into the full session recording when recording stops. Pass elapsed so
+    // rolling-buffer eviction in RecordingProvider can correctly account for
+    // this segment's duration and estimated storage.
+    _recordingProvider.addSegment(xFile.path, elapsed);
 
     if (!await File(clipPath).exists()) return;
 
