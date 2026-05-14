@@ -31,15 +31,6 @@ class SettingsProvider extends ChangeNotifier {
     }
   }
 
-  /// Maps a quality + framerate pair to a target video bitrate in bits per second.
-  /// Values are calibrated for dashcam H.264 encoding: high enough for readable
-  /// license plates and road detail, low enough to keep storage predictable.
-  /// Using fixed bitrates (rather than letting the encoder decide) is what makes
-  /// accurate storage-consumption estimates possible — if the encoder picks its
-  /// own bitrate you can't know in advance how large a file will be.
-  ///
-  /// Rough storage math: bitrate (bps) × seconds ÷ 8 = bytes.
-  /// Example: 10 Mbps × 3600 s ÷ 8 = 4.5 GB per hour at 1080p/30fps.
   static int videoBitrateForSettings(String quality, String framerate) {
     final fps = framerateToFps(framerate);
     switch (quality) {
@@ -64,9 +55,6 @@ class SettingsProvider extends ChangeNotifier {
     }
   }
 
-  /// Converts a footage time-limit string to seconds.
-  /// Used by RecordingProvider to compare total accumulated segment duration
-  /// against the user's chosen limit and evict the oldest segment when exceeded.
   static int footageLimitToSeconds(String value) {
     switch (value) {
       case '30min': return 1800;
@@ -81,9 +69,6 @@ class SettingsProvider extends ChangeNotifier {
     }
   }
 
-  /// Converts a footage storage-limit string to bytes.
-  /// Used alongside footageLimitToSeconds — whichever limit (time or storage)
-  /// is hit first determines when the oldest segment is dropped.
   static int storageLimitToBytes(String value) {
     // 1 GB = 1024^3 bytes (binary gigabytes, matching platform storage reporting)
     const gb = 1024 * 1024 * 1024;
@@ -110,6 +95,23 @@ class SettingsProvider extends ChangeNotifier {
       case '3m':  return 180;
       case '5m':  return 300;
       default:    return 120;
+    }
+  }
+
+  /// Converts a [clipStorageLimitOptions] string to bytes.
+  ///
+  /// Mirrors [storageLimitToBytes] but covers the clip-specific option set
+  /// (1 GB – 8 GB). Uses binary gigabytes (1 GB = 1024^3 bytes) to match how
+  /// platform storage is reported.
+  static int clipStorageLimitToBytes(String value) {
+    const gb = 1024 * 1024 * 1024;
+    switch (value) {
+      case '1GB': return 1 * gb;
+      case '2GB': return 2 * gb;
+      case '4GB': return 4 * gb;
+      case '6GB': return 6 * gb;
+      case '8GB': return 8 * gb;
+      default:    return 2 * gb;
     }
   }
 

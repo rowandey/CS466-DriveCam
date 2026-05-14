@@ -222,6 +222,46 @@ void main() {
     });
   });
 
+  // clipStorageLimitToBytes
+  // Uses binary gigabytes (1 GB = 1024^3 bytes) to match platform storage
+  // reporting. These values drive _enforceClipStorageLimit in ClipProvider —
+  // a wrong mapping would allow clips to consume more or less space than the
+  // user configured.
+  group('SettingsProvider.clipStorageLimitToBytes', () {
+    const gb = 1024 * 1024 * 1024;
+
+    test('maps "1GB" to 1 × 1024^3 bytes', () {
+      expect(SettingsProvider.clipStorageLimitToBytes('1GB'), 1 * gb);
+    });
+
+    test('maps "2GB" to 2 × 1024^3 bytes', () {
+      expect(SettingsProvider.clipStorageLimitToBytes('2GB'), 2 * gb);
+    });
+
+    test('maps "4GB" to 4 × 1024^3 bytes', () {
+      expect(SettingsProvider.clipStorageLimitToBytes('4GB'), 4 * gb);
+    });
+
+    test('maps "6GB" to 6 × 1024^3 bytes', () {
+      expect(SettingsProvider.clipStorageLimitToBytes('6GB'), 6 * gb);
+    });
+
+    test('maps "8GB" to 8 × 1024^3 bytes', () {
+      expect(SettingsProvider.clipStorageLimitToBytes('8GB'), 8 * gb);
+    });
+
+    test('unknown value falls back to 2 × 1024^3 bytes (2GB default)', () {
+      expect(SettingsProvider.clipStorageLimitToBytes('unknown'), 2 * gb);
+    });
+
+    // Verify binary vs decimal distinction: 1 GB must be 1,073,741,824 bytes
+    // (1024^3), not 1,000,000,000 bytes (10^9). Using the wrong base would
+    // allow ~7 % more clips than the user chose before eviction fires.
+    test('uses binary gigabytes, not decimal', () {
+      expect(SettingsProvider.clipStorageLimitToBytes('1GB'), 1073741824);
+    });
+  });
+
   // clipDurationToSeconds
   group('SettingsProvider.clipDurationToSeconds', () {
     test('maps "0s" to 0', () {

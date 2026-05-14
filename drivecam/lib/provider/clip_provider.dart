@@ -9,11 +9,21 @@ import 'package:uuid/uuid.dart';
 import '../models/clip.dart';
 import '../models/recording.dart';
 import 'recording_provider.dart';
+import 'settings_provider.dart';
 
+/// Owns clip saving logic, clip notification state, and clip storage enforcement.
+///
+/// After each clip is saved the provider checks whether the total size of all
+/// stored clips exceeds [SettingsProvider.clipStorageLimit]. If so it deletes
+/// the oldest clip(s) — FIFO, by [date_time] ascending — until the total is
+/// back within the limit. This mirrors how [RecordingProvider] evicts old
+/// recording segments.
 class ClipProvider extends ChangeNotifier {
   final RecordingProvider _recordingProvider;
+  final SettingsProvider _settingsProvider;
 
-  ClipProvider(this._recordingProvider);
+  // [_settingsProvider] is needed to read clipStorageLimit during eviction.
+  ClipProvider(this._recordingProvider, this._settingsProvider);
 
   bool clipSaved = false;
   bool clipInProgress = false;
@@ -43,6 +53,43 @@ class ClipProvider extends ChangeNotifier {
   void _clearClipProgress() {
     clipInProgress = false;
     clipProgressEndTime = null;
+  }
+
+  /// Enforces the clip storage limit by deleting the oldest clips first.
+  ///
+  /// Loads all clips from the database, sums their sizes, then removes the
+  /// oldest clip (lowest [date_time]) repeatedly until the total is within
+  /// [SettingsProvider.clipStorageLimit]. Both the video file and its thumbnail
+  /// are deleted from disk before the DB row is removed.
+  ///
+  /// This is intentionally called *after* [insertClipDB] so the newly saved
+  /// clip is included in the total — if it alone would exceed the limit the
+  /// enforcement still fires and evicts the oldest entry, which may be the
+  /// clip that was just saved if no other clips exist.
+  ///
+  /// Exposed without a leading underscore so that unit tests can call it
+  /// directly after seeding the database. Do not call this from production
+  /// code outside of the two save methods below.
+  @visibleForTesting
+  Future<void> enforceClipStorageLimit() async {
+    final limitBytes = SettingsProvider.clipStorageLimitToBytes(
+        _settingsProvider.clipStorageLimit);
+
+    // loadAllClips returns clips ordered date_time DESC (newest first),
+    // so the oldest clip is always at the tail of the list.
+    final clips = await Clip.loadAllClips();
+    var totalBytes = clips.fold<int>(0, (sum, c) => sum + c.clipSize);
+    int fromEnd = clips.length - 1;
+
+    while (totalBytes > limitBytes && fromEnd >= 0) {
+      final oldest = clips[fromEnd];
+      // Delete files from disk; ignore errors if files are already missing.
+      try { await File(oldest.clipLocation).delete(); } catch (_) {}
+      try { await File(oldest.thumbnailLocation).delete(); } catch (_) {}
+      await oldest.deleteClipDB();
+      totalBytes -= oldest.clipSize;
+      fromEnd--;
+    }
   }
 
   /// Saves a clip of the last N seconds of the active recording.
@@ -169,6 +216,9 @@ class ClipProvider extends ChangeNotifier {
       clipLocation: clipPath,
       thumbnailLocation: thumbnailPath,
     ).insertClipDB();
+
+    // Remove oldest clip(s) if the total clip storage now exceeds the limit.
+    await enforceClipStorageLimit();
     _clearClipProgress();
     clipSaved = true;
   }
@@ -217,6 +267,9 @@ class ClipProvider extends ChangeNotifier {
       clipLocation: clipPath,
       thumbnailLocation: thumbnailPath,
     ).insertClipDB();
+
+    // Remove oldest clip(s) if the total clip storage now exceeds the limit.
+    await enforceClipStorageLimit();
     _clearClipProgress();
     clipSaved = true;
   }
