@@ -127,6 +127,10 @@ void main() {
       expect(settings.onboardingComplete, isFalse);
     });
 
+    test('analytics is disabled by default', () {
+      expect(settings.analyticsEnabled, isFalse);
+    });
+
     test('default pre-duration is 30s', () {
       expect(settings.preDurationLength, SettingsProvider.clipDurationOptions[2]);
     });
@@ -173,6 +177,12 @@ void main() {
       expect(notifyCount, 2);
     });
 
+    test('setAnalyticsEnabled updates state and notifies', () {
+      settings.setAnalyticsEnabled(true);
+      expect(settings.analyticsEnabled, isTrue);
+      expect(notifyCount, 1);
+    });
+
     test('setPreDurationLength updates state and notifies', () {
       settings.setPreDurationLength('1m');
       expect(settings.preDurationLength, '1m');
@@ -214,6 +224,7 @@ void main() {
       expect(settings.quality, SettingsProvider.qualityOptions[1]);
       expect(settings.audioEnabled, isTrue);
       expect(settings.onboardingComplete, isFalse);
+      expect(settings.analyticsEnabled, isFalse);
     });
 
     test('loadPrefs notifies listeners', () async {
@@ -276,6 +287,18 @@ void main() {
 
       expect(settings.onboardingComplete, isTrue);
     });
+
+    test('loadPrefs reads analyticsEnabled true from store', () async {
+      SharedPreferencesAsyncPlatform.instance =
+          InMemorySharedPreferencesAsync.withData({
+        'analyticsEnabled': true,
+      });
+
+      final settings = SettingsProvider();
+      await settings.loadPrefs();
+
+      expect(settings.analyticsEnabled, isTrue);
+    });
   });
 
   // completeOnboarding
@@ -307,6 +330,19 @@ void main() {
       await reloaded.loadPrefs();
 
       expect(reloaded.onboardingComplete, isTrue);
+    });
+  });
+
+  group('SettingsProvider analytics persistence', () {
+    test('persists analytics opt-in so a reloaded provider sees it', () async {
+      final settings = SettingsProvider();
+      settings.setAnalyticsEnabled(true);
+      await Future<void>.delayed(Duration.zero);
+
+      final reloaded = SettingsProvider();
+      await reloaded.loadPrefs();
+
+      expect(reloaded.analyticsEnabled, isTrue);
     });
   });
 }

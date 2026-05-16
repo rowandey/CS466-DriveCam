@@ -84,6 +84,13 @@ class _CameraViewState extends State<CameraView> {
   void initState() {
     super.initState();
     final settings = context.read<SettingsProvider>();
+    context.read<RecordingProvider>().updateSettingsSnapshot(
+      RecordingSettingsSnapshot(
+        quality: settings.quality,
+        framerate: settings.framerate,
+        audioEnabled: settings.audioEnabled,
+      ),
+    );
     _initFuture = _initCamera(settings.quality, settings.framerate, settings.audioEnabled);
   }
 
@@ -131,6 +138,13 @@ class _CameraViewState extends State<CameraView> {
     final quality = settingsProvider.quality;
     final framerate = settingsProvider.framerate;
     final audioEnabled = settingsProvider.audioEnabled;
+    context.read<RecordingProvider>().updateSettingsSnapshot(
+      RecordingSettingsSnapshot(
+        quality: quality,
+        framerate: framerate,
+        audioEnabled: audioEnabled,
+      ),
+    );
     final orientation = MediaQuery.of(context).orientation;
 
     final audioChanged =

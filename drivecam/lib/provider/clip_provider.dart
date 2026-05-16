@@ -6,14 +6,16 @@ import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
+import '../analytics/analytics_controller.dart';
 import '../models/clip.dart';
 import '../models/recording.dart';
 import 'recording_provider.dart';
 
 class ClipProvider extends ChangeNotifier {
   final RecordingProvider _recordingProvider;
+  final AnalyticsController _analytics;
 
-  ClipProvider(this._recordingProvider);
+  ClipProvider(this._recordingProvider, this._analytics);
 
   bool clipSaved = false;
   bool clipInProgress = false;
@@ -56,11 +58,15 @@ class ClipProvider extends ChangeNotifier {
     if (_recordingProvider.isBusy || !_recordingProvider.isRecording) {
       // Queue for processing: immediately if not busy, or after _saveRecording completes
       _pendingClip = (secondsPre: secondsPre, triggerType: triggerType);
-      if (!_recordingProvider.isBusy) await processPendingClip();
+      if (!_recordingProvider.isBusy) {
+        await processPendingClip();
+      }
       return;
     }
     if (_recordingProvider.controller == null ||
-        !_recordingProvider.controller!.value.isInitialized) return;
+        !_recordingProvider.controller!.value.isInitialized) {
+      return;
+    }
     _recordingProvider.lockBusy();
     try {
       await _saveClipFromLive(clipDurationSeconds, triggerType);
@@ -165,6 +171,11 @@ class ClipProvider extends ChangeNotifier {
       clipLocation: clipPath,
       thumbnailLocation: thumbnailPath,
     ).insertClipDB();
+    _analytics.trackClipSaved(
+      durationSeconds: actualDuration,
+      triggerType: triggerType,
+      fromLiveRecording: true,
+    );
     _clearClipProgress();
     clipSaved = true;
   }
@@ -213,6 +224,11 @@ class ClipProvider extends ChangeNotifier {
       clipLocation: clipPath,
       thumbnailLocation: thumbnailPath,
     ).insertClipDB();
+    _analytics.trackClipSaved(
+      durationSeconds: duration,
+      triggerType: triggerType,
+      fromLiveRecording: false,
+    );
     _clearClipProgress();
     clipSaved = true;
   }

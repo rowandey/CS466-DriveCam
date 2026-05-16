@@ -59,6 +59,7 @@ class SettingsProvider extends ChangeNotifier {
 
   // Onboarding
   bool onboardingComplete = false;
+  bool analyticsEnabled = false;
 
   Future<void> loadPrefs() async {
     final prefs = SharedPreferencesAsync();
@@ -72,6 +73,7 @@ class SettingsProvider extends ChangeNotifier {
     // Default to true so new installs record with audio out of the box.
     audioEnabled = await prefs.getBool('audioEnabled') ?? true;
     onboardingComplete = await prefs.getBool('onboardingComplete') ?? false;
+    analyticsEnabled = await prefs.getBool('analyticsEnabled') ?? false;
     notifyListeners();
   }
 
@@ -130,5 +132,11 @@ class SettingsProvider extends ChangeNotifier {
     audioEnabled = value;
     notifyListeners();
     await SharedPreferencesAsync().setBool('audioEnabled', value);
+  }
+
+  void setAnalyticsEnabled(bool value) async {
+    analyticsEnabled = value;
+    notifyListeners();
+    await SharedPreferencesAsync().setBool('analyticsEnabled', value);
   }
 }

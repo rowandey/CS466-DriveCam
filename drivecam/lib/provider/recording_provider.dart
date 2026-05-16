@@ -6,9 +6,13 @@ import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
+import '../analytics/analytics_controller.dart';
 import '../models/recording.dart';
 
 class RecordingProvider extends ChangeNotifier {
+  RecordingProvider(this._analytics);
+
+  final AnalyticsController _analytics;
   bool isRecording = false;
   CameraController? _controller;
   CameraController? get controller => _controller;
@@ -53,6 +57,11 @@ class RecordingProvider extends ChangeNotifier {
         final now = DateTime.now();
         _recordingStartTime = now;
         _segmentStartTime = now;
+        _analytics.trackRecordingStarted(
+          quality: _settingsSnapshot.quality,
+          framerate: _settingsSnapshot.framerate,
+          audioEnabled: _settingsSnapshot.audioEnabled,
+        );
       } else {
         await _saveRecording();
       }
@@ -138,8 +147,15 @@ class RecordingProvider extends ChangeNotifier {
       thumbnailLocation: thumbnailExists ? thumbnailPath : null,
     );
     await recording.insertRecordingDB();
+    _analytics.trackRecordingStopped(durationSeconds: duration);
     // Process any clip request that arrived while recording was stopping.
     await onRecordingSaved?.call();
+  }
+
+  late RecordingSettingsSnapshot _settingsSnapshot;
+
+  void updateSettingsSnapshot(RecordingSettingsSnapshot snapshot) {
+    _settingsSnapshot = snapshot;
   }
 
   /// Concatenates multiple video segments into a single output file using the
@@ -162,4 +178,16 @@ class RecordingProvider extends ChangeNotifier {
       await File(fileListPath).delete();
     } catch (_) {}
   }
+}
+
+class RecordingSettingsSnapshot {
+  const RecordingSettingsSnapshot({
+    required this.quality,
+    required this.framerate,
+    required this.audioEnabled,
+  });
+
+  final String quality;
+  final String framerate;
+  final bool audioEnabled;
 }
